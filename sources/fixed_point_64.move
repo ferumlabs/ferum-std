@@ -413,9 +413,9 @@ module ferum_std::fixed_point_64 {
     #[test]
     fun test_multiply_with_decimals() {
         let a = from_u64(1056, 3);
-        let b = from_u64(2056, 6);
+        let b = from_u64(2056, 1);
         let product = multiply_trunc(a, b);
-        assert!(to_u64(product, 0) == 2171136, 0);
+        assert!(to_u64_trunc(product, 0) == 217, 0);
     }
 
     #[test]
