@@ -1,0 +1,11 @@
+[package]
+name = "ferum-std"
+version = "0.1.0"
+upgrade_policy = "compatible"
+license = "Apache-2.0"
+
+[dependencies]
+AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "devnet" }
+
+[addresses]
+ferum_std="0x74910cf5fa2d7e21c95cc6c97b1b858d3a7228af73ed76ce67c867a4e4ae9bed"
