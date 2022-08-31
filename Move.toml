@@ -1,5 +1,5 @@
 [package]
-name = "FixedPoint"
+name = "FerumSDK"
 version = "0.1.0"
 upgrade_policy = "compatible"
 license = "Apache-2.0"
