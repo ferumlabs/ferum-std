@@ -34,12 +34,12 @@ module ferum_std::fixed_point_64 {
     const ERR_EXCEED_MAX_EXP: u64 = 2;
     /// Thrown when decimals are lost and not truncating or rounding up.
     /// Possible examples:
-    ///     - calling [to_u64()](#0x1_fixed_point_64_to_u64) to convert a number that has 6 decimal
+    ///     - calling [to_u64()](#function-to_u64) to convert a number that has 6 decimal
     ///       places into 5 decimal places, losing a digit
     ///     - Dividing a number with 10 decimal places by 0.01, exceeding the max decimal places
     ///       FixedPoint64 can represent.
     const ERR_PRECISION_LOSS: u64 = 3;
-    /// Thrown when the value of a FixedPoint64 exceeds the [max value](#0x1_fixed_point_64_Constants_0)
+    /// Thrown when the value of a FixedPoint64 exceeds the [max value](#max_value)
     /// able to be represented.
     const ERR_EXCEED_MAX: u64 = 4;
 
