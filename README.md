@@ -4,7 +4,7 @@ Move is an awesome langauge, but since the ecosystem is still early, it's missin
 
 ## List of Open Source Implementations 
 
-* `ferum_std::fixed_point_64` — Ferum's implementation of FixedPoint helping to managing decimal points represented as integers. 
+* [`ferum_std::fixed_point_64`](https://github.com/ferum-dex/ferum-std/blob/main/README.md#fixedpoint) — Ferum's implementation of FixedPoint helping to managing decimal points represented as integers. 
 
 ## Installing
 
