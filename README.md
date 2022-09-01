@@ -25,7 +25,7 @@ FerumSTD = { git = "https://github.com/ferum-dex/ferum-std.git", rev = "main" }
 ```
 use ferum_std::fixed_point_64::{Self, FixedPoint64};
 ...
-let one = fixed_point_64::from_u64(100, 3);
+let one = fixed_point_64::from_u64(1000, 3);
 ```
 
 ## Contributing
