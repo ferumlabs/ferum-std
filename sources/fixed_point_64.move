@@ -1,8 +1,46 @@
+/// ---
+/// description: ferum_std::fixed_point_64
+/// ---
+///
+/// # FixedPoint64
+///
 /// Ferum's implementation of a FixedPoint number.
 /// Has fixed decimal places of 10 and a max value of
 /// `MAX_U64 (18446744073709551615)`.
 ///
 /// Operations that result in an overflow will error out.
+///
+/// # Quick Example
+///
+/// ```
+/// use ferum_std::fixed_point_64::{Self, FixedPoint64};
+///
+/// /// Create fixed points from input.
+/// let a = fixed_point_64::from_u64(1024, 3); // 1.024
+/// let b = fixed_point_64::from_u64(2056, 2); // 20.56
+///
+/// // Compare two numbers
+/// assert!(fixed_point_64::lte(a, b), 0);
+/// assert!(!fixed_point_64::gte(a, b), 0);
+///
+/// // Get min/max of two fixed points.
+/// let min = fixed_point_64::min(a, b);
+/// let max = fixed_point_64::max(a, b);
+///
+/// // Perform addition / subtraction.
+/// let added =  fixed_point_64::add(a, b);
+/// let subtracted = fixed_point_64::sub(b, a);
+///
+/// // Perform multiplication / division with support for rounding up or truncating.
+/// let multipliedRounded = fixed_point_64::multiply_round_up(a, a);
+/// let multipliedTruncated = fixed_point_64::multiply_round_up(a, a);
+/// let dividedRounded = fixed_point_64::divide_round_up(b, a);
+/// let dividedTruncated = fixed_point_64::divide_trunc(b, a);
+///
+/// // Convert back to integers.
+/// let au64 = fixed_point_64::to_u64(a, 3);
+/// let bu64 = fixed_point_64::to_u64(b, 2);
+/// ```
 module ferum_std::fixed_point_64 {
 
     /// Fixedpoint struct. Can be stored, copied, and dropped.
