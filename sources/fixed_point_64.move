@@ -1,32 +1,46 @@
-/// Ferum's implementation of a FixedPoint number, stored internally as
-/// a u128. Has fixed decimal places of 10 and a max value of MAX_U64.
+/// Ferum's implementation of a FixedPoint number.
+/// Has fixed decimal places of 10 and a max value of
+/// MAX_U64 (18446744073709551615).
 ///
 /// Operations that result in an overflow will error out.
 module ferum_std::fixed_point_64 {
 
+    /// Fixedpoint struct. Can be stored, copied, and dropped.
     struct FixedPoint64 has store, drop, copy {
-        /// This might seem a bit odd at first; why is FixedPoint64 actually
-        /// representing the value as 128 bits! But it makes sense since only
-        /// the first 64 bits are used for the whole number, the rest are for
-        /// fractional part.
+        // Stored internally as a u128 to prevent overflow during multiplcation.
         val: u128,
     }
 
-    /// The max value that can be represented using a u128.
+    // The max value that can be represented using a u128.
     const MAX_U128: u128 = 340282366920938463463374607431768211455u128;
     /// Number of decimal places in a FixedPoint value.
     const DECIMAL_PLACES: u8 = 10;
     /// Max value a FixedPoint can represent.
     const MAX_VALUE: u128 = 18446744073709551615;
 
+    // Internal enums for modes different operations can be in.
     const MODE_ROUND_UP: u8 = 0;
     const MODE_TRUNCATE: u8 = 1;
     const MODE_NO_PRECISION_LOSS: u8 = 2;
 
-    /// Errors.
+    // Errors.
+    /// Thrown when max decimals of FixedPoint64 is exceeded.
+    /// Possible examples:
+    ///     - if trying to create a FixedPoint64 from a 12 decimal number
+    ///     - if multiplying two 6 decimal numbers together
     const ERR_EXCEED_MAX_DECIMALS: u64 = 1;
+    /// Because move doesn't have a native power function, we need to hardcode powers of 10.
+    /// Thrown if we try to get a power of 10 that is not hardcoded.
     const ERR_EXCEED_MAX_EXP: u64 = 2;
+    /// Thrown when decimals are lost and not truncating or rounding up.
+    /// Possible examples:
+    ///     - calling [to_u64()](#0x1_fixed_point_64_to_u64) to convert a number that has 6 decimal
+    ///       places into 5 decimal places, losing a digit
+    ///     - Dividing a number with 10 decimal places by 0.01, exceeding the max decimal places
+    ///       FixedPoint64 can represent.
     const ERR_PRECISION_LOSS: u64 = 3;
+    /// Thrown when the value of a FixedPoint64 exceeds the [max value](#0x1_fixed_point_64_Constants_0)
+    /// able to be represented.
     const ERR_EXCEED_MAX: u64 = 4;
 
     /// Create a new FixedPoint from a u64 value. No conversion is performed.
@@ -218,28 +232,32 @@ module ferum_std::fixed_point_64 {
         FixedPoint64 { val: a.val - b.val }
     }
 
-    /// Self explanatory comparison functions.
-
+    /// Return true if a < b.
     public fun lt(a: FixedPoint64, b: FixedPoint64): bool {
         a.val < b.val
     }
 
+    /// Return true if a <= b.
     public fun lte(a: FixedPoint64, b: FixedPoint64): bool {
         a.val <= b.val
     }
 
+    /// Return true if a > b.
     public fun gt(a: FixedPoint64, b: FixedPoint64): bool {
         a.val > b.val
     }
 
+    /// Return true if a >= b.
     public fun gte(a: FixedPoint64, b: FixedPoint64): bool {
         a.val >= b.val
     }
 
+    /// Return true if a == b.
     public fun eq(a: FixedPoint64, b: FixedPoint64): bool {
         a.val == b.val
     }
 
+    /// Returns max(a, b).
     public fun max(a: FixedPoint64, b: FixedPoint64): FixedPoint64 {
         if (a.val >= b.val) {
             a
@@ -248,6 +266,7 @@ module ferum_std::fixed_point_64 {
         }
     }
 
+    /// Returns min(a, b).
     public fun min(a: FixedPoint64, b: FixedPoint64): FixedPoint64 {
         if (a.val < b.val) {
             a
@@ -256,7 +275,7 @@ module ferum_std::fixed_point_64 {
         }
     }
 
-    /// Exponents.
+    // Exponents.
     const F0 : u128 = 1;
     const F1 : u128 = 10;
     const F2 : u128 = 100;
@@ -279,7 +298,7 @@ module ferum_std::fixed_point_64 {
     const F19: u128 = 10000000000000000000;
     const F20: u128 = 100000000000000000000;
 
-    /// Programatic way to get a power of 10.
+    // Programatic way to get a power of 10.
     fun exp(e: u8): u128 {
         assert!(e <= 20, ERR_EXCEED_MAX_EXP);
 
