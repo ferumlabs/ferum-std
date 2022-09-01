@@ -1,3 +1,7 @@
+---
+description: ferum_std::fixed_point_64
+---
+
 # FixedPoint64
 
 Ferum's implementation of a FixedPoint number. Has fixed decimal places of 10 and a max value of `MAX_U64 (18446744073709551615)`.
