@@ -1,5 +1,5 @@
 # Table of contents
 
 * [Ferum Standard Library](README.md)
-* [Modules](doc/README.md)
-  * [FixedPoint64](doc/fixed\_point\_64.md)
+* [Modules](modules/README.md)
+  * [FixedPoint64](modules/fixed\_point\_64.md)
