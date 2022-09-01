@@ -1,6 +1,6 @@
 Ferum's implementation of a FixedPoint number.
 Has fixed decimal places of 10 and a max value of
-MAX_U64 (18446744073709551615).
+<code>MAX_U64 (18446744073709551615)</code>.
 
 Operations that result in an overflow will error out.
 
@@ -9,7 +9,7 @@ Operations that result in an overflow will error out.
 
 <a name="ferum_std_fixed_point_64_FixedPoint64"></a>
 
-## Struct `FixedPoint64`
+# Struct `FixedPoint64`
 
 Fixedpoint struct. Can be stored, copied, and dropped.
 
@@ -21,12 +21,12 @@ Fixedpoint struct. Can be stored, copied, and dropped.
 
 <a name="@constants"></a>
 
-## Constants
+# Constants
 
 
 <a name="@decimal_places"></a>
 
-### DECIMAL_PLACES
+## DECIMAL_PLACES
 
 
 <a name="ferum_std_fixed_point_64_DECIMAL_PLACES"></a>
@@ -41,7 +41,7 @@ Number of decimal places in a FixedPoint value.
 
 <a name="@err_exceed_max"></a>
 
-### ERR_EXCEED_MAX
+## ERR_EXCEED_MAX
 
 
 <a name="ferum_std_fixed_point_64_ERR_EXCEED_MAX"></a>
@@ -57,7 +57,7 @@ able to be represented.
 
 <a name="@err_exceed_max_decimals"></a>
 
-### ERR_EXCEED_MAX_DECIMALS
+## ERR_EXCEED_MAX_DECIMALS
 
 
 <a name="ferum_std_fixed_point_64_ERR_EXCEED_MAX_DECIMALS"></a>
@@ -75,7 +75,7 @@ Possible examples:
 
 <a name="@err_exceed_max_exp"></a>
 
-### ERR_EXCEED_MAX_EXP
+## ERR_EXCEED_MAX_EXP
 
 
 <a name="ferum_std_fixed_point_64_ERR_EXCEED_MAX_EXP"></a>
@@ -91,14 +91,14 @@ Thrown if we try to get a power of 10 that is not hardcoded.
 
 <a name="@err_precision_loss"></a>
 
-### ERR_PRECISION_LOSS
+## ERR_PRECISION_LOSS
 
 
 <a name="ferum_std_fixed_point_64_ERR_PRECISION_LOSS"></a>
 
 Thrown when decimals are lost and not truncating or rounding up.
 Possible examples:
-- calling [to_u64()](#function-to_u64) to convert a number that has 6 decimal
+- calling <code>[<a href="fixed_point_64.md#ferum_std_fixed_point_64_to_u64">to_u64</a>()](#function-to_u64)</code> to convert a number that has 6 decimal
 places into 5 decimal places, losing a digit
 - Dividing a number with 10 decimal places by 0.01, exceeding the max decimal places
 FixedPoint64 can represent.
@@ -111,7 +111,7 @@ FixedPoint64 can represent.
 
 <a name="@max_value"></a>
 
-### MAX_VALUE
+## MAX_VALUE
 
 
 <a name="ferum_std_fixed_point_64_MAX_VALUE"></a>
@@ -126,15 +126,15 @@ Max value a FixedPoint can represent.
 
 <a name="@functions"></a>
 
-## Functions
+# Functions
 
 
 <a name="ferum_std_fixed_point_64_new_u64"></a>
 
-### Function `new_u64`
+## Function `new_u64`
 
 Create a new FixedPoint from a u64 value. No conversion is performed.
-Example: new_u64(12345) == 0.0000012345
+Example: <code><a href="fixed_point_64.md#ferum_std_fixed_point_64_new_u64">new_u64</a>(12345) == 0.0000012345</code>
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_new_u64">new_u64</a>(val: u64): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
@@ -144,10 +144,10 @@ Example: new_u64(12345) == 0.0000012345
 
 <a name="ferum_std_fixed_point_64_new_u128"></a>
 
-### Function `new_u128`
+## Function `new_u128`
 
 Create a new FixedPoint from a u128 value. No conversion is performed.
-Example: new_u128(12345) == 0.0000012345
+Example: <code><a href="fixed_point_64.md#ferum_std_fixed_point_64_new_u128">new_u128</a>(12345) == 0.0000012345</code>
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_new_u128">new_u128</a>(val: u128): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
@@ -157,7 +157,7 @@ Example: new_u128(12345) == 0.0000012345
 
 <a name="ferum_std_fixed_point_64_value"></a>
 
-### Function `value`
+## Function `value`
 
 Return then underlying value of the FixedPoint.
 
@@ -169,7 +169,7 @@ Return then underlying value of the FixedPoint.
 
 <a name="ferum_std_fixed_point_64_zero"></a>
 
-### Function `zero`
+## Function `zero`
 
 Return a FixedPoint that equals 0.
 
@@ -181,7 +181,7 @@ Return a FixedPoint that equals 0.
 
 <a name="ferum_std_fixed_point_64_one"></a>
 
-### Function `one`
+## Function `one`
 
 Return a FixedPoint that equals 1.
 
@@ -193,7 +193,7 @@ Return a FixedPoint that equals 1.
 
 <a name="ferum_std_fixed_point_64_half"></a>
 
-### Function `half`
+## Function `half`
 
 Return a FixedPoint that equals 0.5.
 
@@ -205,7 +205,7 @@ Return a FixedPoint that equals 0.5.
 
 <a name="ferum_std_fixed_point_64_max_fp"></a>
 
-### Function `max_fp`
+## Function `max_fp`
 
 Returns the max FixedPoint value.
 
@@ -217,7 +217,7 @@ Returns the max FixedPoint value.
 
 <a name="ferum_std_fixed_point_64_min_fp"></a>
 
-### Function `min_fp`
+## Function `min_fp`
 
 Returns the min FixedPoint value.
 
@@ -229,7 +229,7 @@ Returns the min FixedPoint value.
 
 <a name="ferum_std_fixed_point_64_trunc_to_decimals"></a>
 
-### Function `trunc_to_decimals`
+## Function `trunc_to_decimals`
 
 Returns a FixedPoint truncated to the given decimal places.
 
@@ -241,7 +241,7 @@ Returns a FixedPoint truncated to the given decimal places.
 
 <a name="ferum_std_fixed_point_64_round_up_to_decimals"></a>
 
-### Function `round_up_to_decimals`
+## Function `round_up_to_decimals`
 
 Returns a FixedPoint rounded up to the given decimal places.
 
@@ -253,7 +253,7 @@ Returns a FixedPoint rounded up to the given decimal places.
 
 <a name="ferum_std_fixed_point_64_to_u64_trunc"></a>
 
-### Function `to_u64_trunc`
+## Function `to_u64_trunc`
 
 Converts the FixedPoint to a u64 value with the given number of decimal places.
 Truncates any digits that are lost.
@@ -266,7 +266,7 @@ Truncates any digits that are lost.
 
 <a name="ferum_std_fixed_point_64_to_u128_trunc"></a>
 
-### Function `to_u128_trunc`
+## Function `to_u128_trunc`
 
 Converts the FixedPoint to a u128 value with the given number of decimal places.
 Truncates any digits that are lost.
@@ -279,7 +279,7 @@ Truncates any digits that are lost.
 
 <a name="ferum_std_fixed_point_64_to_u64_round_up"></a>
 
-### Function `to_u64_round_up`
+## Function `to_u64_round_up`
 
 Converts the FixedPoint to a u64 value with the given number of decimal places.
 Rounds up if digits are lost.
@@ -292,7 +292,7 @@ Rounds up if digits are lost.
 
 <a name="ferum_std_fixed_point_64_to_u128_round_up"></a>
 
-### Function `to_u128_round_up`
+## Function `to_u128_round_up`
 
 Converts the FixedPoint to a u128 value with the given number of decimal places.
 Rounds up if digits are lost.
@@ -305,7 +305,7 @@ Rounds up if digits are lost.
 
 <a name="ferum_std_fixed_point_64_to_u64"></a>
 
-### Function `to_u64`
+## Function `to_u64`
 
 Converts the FixedPoint to a u64 value with the given number of decimal places.
 Errors if any digits are lost.
@@ -318,7 +318,7 @@ Errors if any digits are lost.
 
 <a name="ferum_std_fixed_point_64_to_u128"></a>
 
-### Function `to_u128`
+## Function `to_u128`
 
 Converts the FixedPoint to a u128 value with the given number of decimal places.
 Errors if any digits are lost.
@@ -331,7 +331,7 @@ Errors if any digits are lost.
 
 <a name="ferum_std_fixed_point_64_from_u64"></a>
 
-### Function `from_u64`
+## Function `from_u64`
 
 Converts the value with the specified decimal places to a FixedPoint value.
 
@@ -343,7 +343,7 @@ Converts the value with the specified decimal places to a FixedPoint value.
 
 <a name="ferum_std_fixed_point_64_from_u128"></a>
 
-### Function `from_u128`
+## Function `from_u128`
 
 Converts the value with the specified decimal places to a FixedPoint value.
 
@@ -355,7 +355,7 @@ Converts the value with the specified decimal places to a FixedPoint value.
 
 <a name="ferum_std_fixed_point_64_multiply_trunc"></a>
 
-### Function `multiply_trunc`
+## Function `multiply_trunc`
 
 Multiplies two FixedPoints, truncating if the number of decimal places exceeds DECIMAL_PLACES.
 
@@ -367,7 +367,7 @@ Multiplies two FixedPoints, truncating if the number of decimal places exceeds D
 
 <a name="ferum_std_fixed_point_64_multiply_round_up"></a>
 
-### Function `multiply_round_up`
+## Function `multiply_round_up`
 
 Multiplies two FixedPoints, rounding up if the number of decimal places exceeds DECIMAL_PLACES.
 
@@ -379,7 +379,7 @@ Multiplies two FixedPoints, rounding up if the number of decimal places exceeds 
 
 <a name="ferum_std_fixed_point_64_divide_trunc"></a>
 
-### Function `divide_trunc`
+## Function `divide_trunc`
 
 Divides two FixedPoints, truncating if the number of decimal places exceeds DECIMAL_PLACES.
 
@@ -391,7 +391,7 @@ Divides two FixedPoints, truncating if the number of decimal places exceeds DECI
 
 <a name="ferum_std_fixed_point_64_divide_round_up"></a>
 
-### Function `divide_round_up`
+## Function `divide_round_up`
 
 Divides two FixedPoints, rounding up if the number of decimal places exceeds DECIMAL_PLACES.
 
@@ -403,7 +403,7 @@ Divides two FixedPoints, rounding up if the number of decimal places exceeds DEC
 
 <a name="ferum_std_fixed_point_64_add"></a>
 
-### Function `add`
+## Function `add`
 
 Adds two FixedPoints.
 
@@ -415,7 +415,7 @@ Adds two FixedPoints.
 
 <a name="ferum_std_fixed_point_64_sub"></a>
 
-### Function `sub`
+## Function `sub`
 
 Subtracts two FixedPoints.
 
@@ -427,7 +427,7 @@ Subtracts two FixedPoints.
 
 <a name="ferum_std_fixed_point_64_lt"></a>
 
-### Function `lt`
+## Function `lt`
 
 Return true if a < b.
 
@@ -439,7 +439,7 @@ Return true if a < b.
 
 <a name="ferum_std_fixed_point_64_lte"></a>
 
-### Function `lte`
+## Function `lte`
 
 Return true if a <= b.
 
@@ -451,7 +451,7 @@ Return true if a <= b.
 
 <a name="ferum_std_fixed_point_64_gt"></a>
 
-### Function `gt`
+## Function `gt`
 
 Return true if a > b.
 
@@ -463,7 +463,7 @@ Return true if a > b.
 
 <a name="ferum_std_fixed_point_64_gte"></a>
 
-### Function `gte`
+## Function `gte`
 
 Return true if a >= b.
 
@@ -475,7 +475,7 @@ Return true if a >= b.
 
 <a name="ferum_std_fixed_point_64_eq"></a>
 
-### Function `eq`
+## Function `eq`
 
 Return true if a == b.
 
@@ -487,7 +487,7 @@ Return true if a == b.
 
 <a name="ferum_std_fixed_point_64_max"></a>
 
-### Function `max`
+## Function `max`
 
 Returns max(a, b).
 
@@ -499,7 +499,7 @@ Returns max(a, b).
 
 <a name="ferum_std_fixed_point_64_min"></a>
 
-### Function `min`
+## Function `min`
 
 Returns min(a, b).
 

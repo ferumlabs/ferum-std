@@ -1,6 +1,6 @@
 /// Ferum's implementation of a FixedPoint number.
 /// Has fixed decimal places of 10 and a max value of
-/// MAX_U64 (18446744073709551615).
+/// `MAX_U64 (18446744073709551615)`.
 ///
 /// Operations that result in an overflow will error out.
 module ferum_std::fixed_point_64 {
@@ -34,7 +34,7 @@ module ferum_std::fixed_point_64 {
     const ERR_EXCEED_MAX_EXP: u64 = 2;
     /// Thrown when decimals are lost and not truncating or rounding up.
     /// Possible examples:
-    ///     - calling [to_u64()](#function-to_u64) to convert a number that has 6 decimal
+    ///     - calling `[to_u64()](#function-to_u64)` to convert a number that has 6 decimal
     ///       places into 5 decimal places, losing a digit
     ///     - Dividing a number with 10 decimal places by 0.01, exceeding the max decimal places
     ///       FixedPoint64 can represent.
@@ -44,13 +44,13 @@ module ferum_std::fixed_point_64 {
     const ERR_EXCEED_MAX: u64 = 4;
 
     /// Create a new FixedPoint from a u64 value. No conversion is performed.
-    /// Example: new_u64(12345) == 0.0000012345
+    /// Example: `new_u64(12345) == 0.0000012345`
     public fun new_u64(val: u64): FixedPoint64 {
         FixedPoint64 { val: (val as u128) }
     }
 
     /// Create a new FixedPoint from a u128 value. No conversion is performed.
-    /// Example: new_u128(12345) == 0.0000012345
+    /// Example: `new_u128(12345) == 0.0000012345`
     public fun new_u128(val: u128): FixedPoint64 {
         FixedPoint64 { val }
     }
