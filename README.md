@@ -4,7 +4,7 @@ Move is an awesome langauge, but since the ecosystem is still early, it's missin
 
 ## List of Modules
 
-* [`ferum_std::fixed_point_64`](https://github.com/ferum-dex/ferum-std/edit/main/README.md#fixed-point) — Ferum's implementation of FixedPoint, helping manage decimal points represented as integers.
+* [`ferum_std::fixed_point_64`](#fixed-point) — Ferum's implementation of FixedPoint, helping manage decimal points represented as integers.
 
 ## Installing
 
@@ -31,7 +31,7 @@ There are some quick examples below for each module, but if you want to see more
 
 ## Quick Examples 
 
-### Fidxed Point
+### Fixed Point
 
 ```
 use ferum_std::fixed_point_64::{Self, FixedPoint64};
