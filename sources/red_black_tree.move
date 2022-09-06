@@ -120,6 +120,10 @@ module ferum_std::red_black_tree {
         node_with_key(tree, nodeKey).rightChildNodeKeyIsSet
     }
 
+    fun is_root_node<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
+        tree.rootNodeKey == nodeKey
+    }
+
     ///
     /// INSERTION
     ///
@@ -197,6 +201,40 @@ module ferum_std::red_black_tree {
     /// ROTATIONS
     ///
 
+    fun rotate_right<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, childNodeKey: u128) {
+        // 0. Check parent/child preconditions!
+        {
+            let parentNode = node_with_key(tree, parentNodeKey);
+            let childNode = node_with_key(tree, childNodeKey);
+            assert!(parentNode.leftChildNodeKey == childNodeKey, INVALID_ROTATION_NODES);
+            assert!(childNode.parentNodeKey == parentNodeKey, INVALID_ROTATION_NODES);
+        };
+
+        // 1. If child has a right subtree, assign parent as the new parent of the right subtree of the child.
+        if (has_right_child(tree, childNodeKey)) {
+            let rightGrandchildNodeKey = node_with_key(tree, childNodeKey).rightChildNodeKey;
+            let rightGrandchildNode = node_with_key_mut(tree, rightGrandchildNodeKey);
+            // a. Fix the link upwards; the right substree points to the grandparent.
+            rightGrandchildNode.parentNodeKey = parentNodeKey;
+            // b. Parent node's left child now points to child's right substree.
+            let parent = node_with_key_mut(tree, parentNodeKey);
+            parent.leftChildNodeKey = rightGrandchildNodeKey;
+            parent.leftChildNodeKeyIsSet = true;
+        } else {
+            // If the child node doesn't have a left subtree, we must disconnect the parent from the child.
+            let parent = node_with_key_mut(tree, parentNodeKey);
+            parent.leftChildNodeKeyIsSet = false;
+        };
+
+        // 2. Swap the parents; the parent's parent is now the child, and the child's parent is the parent's old parent.
+        swap_parents(tree, parentNodeKey, childNodeKey);
+
+        // 3. Make the parent the new child of the child (as the right node).
+        let childNode = node_with_key_mut(tree, childNodeKey);
+        childNode.rightChildNodeKey = parentNodeKey;
+        childNode.rightChildNodeKeyIsSet = true;
+    }
+
     // Good example to follow is here, https://www.programiz.com/dsa/red-black-tree
     // We renaming x and y, with parent and child to make it a bit more concrete.
     fun rotate_left<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, childNodeKey: u128) {
@@ -224,8 +262,19 @@ module ferum_std::red_black_tree {
             parent.rightChildNodeKeyIsSet = false;
         };
 
-        // 2. Swap the parents; the child should point to the grandparent, if one exists (else, it's root).
-        if (tree.rootNodeKey == parentNodeKey) {
+        // 2. Swap the parents; the parent's parent is now the child, and the child's parent is the parent's old parent.
+        swap_parents(tree, parentNodeKey, childNodeKey);
+
+        // 3. Make the parent the new child of the child (as the left node).
+        let childNode = node_with_key_mut(tree, childNodeKey);
+        childNode.leftChildNodeKey = parentNodeKey;
+        childNode.leftChildNodeKeyIsSet = true;
+    }
+
+    fun swap_parents<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, childNodeKey: u128) {
+        // 1. The child takes over the parent's spot; either as root (if parent is root), or as the grandprent's
+        // left/right node, depending which direction the parent belonged.
+        if (is_root_node(tree, parentNodeKey)) {
             // The parent is root! The child must be promoted to root!
             let childNode = node_with_key_mut(tree, childNodeKey);
             childNode.parentNodeKeyIsSet = false;
@@ -242,25 +291,61 @@ module ferum_std::red_black_tree {
             childNode.parentNodeKey = grandparentNodeKey;
         };
 
-        // 3. Make the child the new parent of the parent.
-        {
-            let childNode = node_with_key_mut(tree, childNodeKey);
-            childNode.leftChildNodeKey = parentNodeKey;
-            childNode.leftChildNodeKeyIsSet = true;
-            let parentNode = node_with_key_mut(tree, parentNodeKey);
-            parentNode.parentNodeKey = childNodeKey;
-            parentNode.parentNodeKeyIsSet = true;
-        };
+        // 2. The child becomes the parent of the parent. Note that we're just updating the parent key here,
+        // and that the child still needs to asign the parent either to its left or right child keys.
+        let parentNode = node_with_key_mut(tree, parentNodeKey);
+        parentNode.parentNodeKey = childNodeKey;
+        parentNode.parentNodeKeyIsSet = true;
     }
 
-    fun rotate_right<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, childNodeKey: u128) {
-        // 0. Check parent/child preconditions!
-        {
-            let parentNode = node_with_key(tree, parentNodeKey);
-            let childNode = node_with_key(tree, childNodeKey);
-            assert!(parentNode.leftChildNodeKey == childNodeKey, INVALID_ROTATION_NODES);
-            assert!(childNode.parentNodeKey == parentNodeKey, INVALID_ROTATION_NODES);
-        };
+    //
+    // TEST ROTATIONS
+    //
+
+    #[test(signer = @0x345)]
+    fun test_rotate_right_with_root(signer: signer) {
+        let tree = new<u128>();
+        insert(&mut tree, 10, 0);
+        insert(&mut tree, 7, 0);
+        insert(&mut tree, 15, 0);
+        insert(&mut tree, 5, 0);
+        insert(&mut tree, 8, 0);
+        insert(&mut tree, 2, 0);
+        insert(&mut tree, 6, 0);
+        assert_inorder_tree(&tree, b"2(B) 5 _ _: [0], 5(B) 7 2 6: [0], 6(B) 5 _ _: [0], 7(B) 10 5 8: [0], 8(B) 7 _ _: [0], 10(B) root 7 15: [0], 15(B) 10 _ _: [0]");
+        rotate_right(&mut tree, 10, 7);
+        assert_inorder_tree(&tree, b"2(B) 5 _ _: [0], 5(B) 7 2 6: [0], 6(B) 5 _ _: [0], 7(B) root 5 10: [0], 8(B) 10 _ _: [0], 10(B) 7 8 15: [0], 15(B) 10 _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_rotate_right(signer: signer) {
+        let tree = new<u128>();
+        insert(&mut tree, 10, 0);
+        insert(&mut tree, 7, 0);
+        insert(&mut tree, 15, 0);
+        insert(&mut tree, 5, 0);
+        insert(&mut tree, 8, 0);
+        insert(&mut tree, 2, 0);
+        insert(&mut tree, 6, 0);
+        assert_inorder_tree(&tree, b"2(B) 5 _ _: [0], 5(B) 7 2 6: [0], 6(B) 5 _ _: [0], 7(B) 10 5 8: [0], 8(B) 7 _ _: [0], 10(B) root 7 15: [0], 15(B) 10 _ _: [0]");
+        rotate_right(&mut tree, 7, 5);
+        assert_inorder_tree(&tree, b"2(B) 5 _ _: [0], 5(B) 10 2 7: [0], 6(B) 7 _ _: [0], 7(B) 5 6 8: [0], 8(B) 7 _ _: [0], 10(B) root 5 15: [0], 15(B) 10 _ _: [0]");
+        assert!(is_root_node(&tree, 10), 0);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    #[expected_failure(abort_code = 3)]
+    fun test_rotate_right_with_incorrect_nodes(signer: signer) {
+        let tree = new<u128>();
+        insert(&mut tree, 10, 0);
+        insert(&mut tree, 4, 0);
+        insert(&mut tree, 15, 0);
+        insert(&mut tree, 14, 0);
+        insert(&mut tree, 16, 0);
+        rotate_right(&mut tree, 10, 16);
+        move_to(&signer, tree)
     }
 
     #[test(signer = @0x345)]
@@ -274,6 +359,7 @@ module ferum_std::red_black_tree {
         assert_inorder_tree(&tree, b"4(B) 10 _ _: [0], 10(B) root 4 15: [0], 14(B) 15 _ _: [0], 15(B) 10 14 16: [0], 16(B) 15 _ _: [0]");
         rotate_left(&mut tree, 10, 15);
         assert_inorder_tree(&tree, b"4(B) 10 _ _: [0], 10(B) 15 4 14: [0], 14(B) 10 _ _: [0], 15(B) root 10 16: [0], 16(B) 15 _ _: [0]");
+        assert!(is_root_node(&tree, 15), 0);
         move_to(&signer, tree)
     }
 
@@ -288,6 +374,7 @@ module ferum_std::red_black_tree {
         assert_inorder_tree(&tree, b"4(B) 10 _ _: [0], 10(B) root 4 15: [0], 14(B) 15 _ _: [0], 15(B) 10 14 16: [0], 16(B) 15 _ _: [0]");
         rotate_left(&mut tree, 15, 16);
         assert_inorder_tree(&tree, b"4(B) 10 _ _: [0], 10(B) root 4 16: [0], 14(B) 15 _ _: [0], 15(B) 16 14 _: [0], 16(B) 10 15 _: [0]");
+        assert!(is_root_node(&tree, 10), 0);
         move_to(&signer, tree)
     }
 
@@ -304,96 +391,9 @@ module ferum_std::red_black_tree {
         move_to(&signer, tree)
     }
 
-    #[test_only]
-    fun inorder<V: store + drop>(tree: &Tree<V>): vector<u128> {
-        let inorderVector = &mut vector::empty<u128>();
-        if (!is_empty(tree)) {
-            let treeRootNode = tree.rootNodeKey;
-            inorder_starting_at_node(tree, inorderVector, treeRootNode);
-        };
-        return *inorderVector
-    }
-
-    #[test_only]
-    fun inorder_starting_at_node<V: store + drop>(tree: &Tree<V>, results: &mut vector<u128>, currentNodeKey: u128) {
-        let currentNode = node_with_key(tree, currentNodeKey);
-        if (currentNode.leftChildNodeKeyIsSet) {
-            inorder_starting_at_node(tree, results, currentNode.leftChildNodeKey)
-        };
-        vector::push_back(results, currentNodeKey);
-        if (currentNode.rightChildNodeKeyIsSet) {
-            inorder_starting_at_node(tree, results, currentNode.rightChildNodeKey)
-        };
-    }
-
-    #[test_only]
-    fun inorder_string_with_tree(tree: &Tree<u128>): String {
-        let inorderKeys = inorder(tree);
-        let i = 0;
-        let buffer = &mut string::utf8(b"");
-        let len = vector::length(&inorderKeys);
-        while (i < len) {
-            let key = *vector::borrow(&inorderKeys, i);
-            string::append(buffer, string_with_node(tree, key));
-            i = i + 1;
-            if (i < len) {
-                string::append(buffer, string::utf8(b", "));
-            }
-        };
-        *buffer
-    }
-
-    #[test_only]
-    fun string_with_node(tree: &Tree<u128>, key: u128): String {
-        let node = node_with_key(tree, key);
-        let buffer = &mut string::utf8(b"");
-        string::append(buffer, to_string_u128(key));
-        string::append(buffer, string::utf8(if (is_node_red(tree, key)) b"(R)" else b"(B)"));
-        if (node.parentNodeKeyIsSet) {
-            string::append(buffer, string::utf8(b" "));
-            string::append(buffer, to_string_u128(node.parentNodeKey));
-        } else {
-            string::append(buffer, string::utf8(b" root"));
-        };
-        if (node.leftChildNodeKeyIsSet) {
-            string::append(buffer, string::utf8(b" "));
-            string::append(buffer, to_string_u128(node.leftChildNodeKey));
-        } else {
-            string::append(buffer, string::utf8(b" _"));
-        };
-        if (node.rightChildNodeKeyIsSet) {
-            string::append(buffer, string::utf8(b" "));
-            string::append(buffer, to_string_u128(node.rightChildNodeKey));
-        } else {
-            string::append(buffer, string::utf8(b" _"));
-        };
-        string::append(buffer, string::utf8(b": ["));
-        string::append(buffer, to_string_vector(values_at(tree, key), b", "));
-        string::append(buffer, string::utf8(b"]"));
-        *buffer
-    }
-
-    #[test_only]
-    fun assert_inorder_tree(tree: &Tree<u128>, byteString: vector<u8>) {
-        assert!(*string::bytes(&inorder_string_with_tree(tree)) == byteString, 0);
-    }
-
-    #[test_only]
-    fun print_tree(tree: &Tree<u128>) {
-        std::debug::print(string::bytes(&inorder_string_with_tree(tree)));
-    }
-
-    #[test_only]
-    fun print_node(tree: &Tree<u128>, key: u128) {
-        std::debug::print(string::bytes(&string_with_node(tree, key)));
-    }
-
-    #[test_only]
-    fun assert_red_black_tree(tree: &Tree<u128>) {
-        // Condition 1. The root node must be black!
-        assert!(!is_node_red(tree, tree.rootNodeKey), 0)
-        // TODO: Add the rest of the conditions!
-    }
+    //
+    // TEST INSERTIONS
+    //
 
     #[test(signer = @0x345)]
     fun test_is_empty_with_empty_tree(signer: signer) {
@@ -545,5 +545,100 @@ module ferum_std::red_black_tree {
         assert!(key == 10, 0);
         assert!(*value == 100, 0);
         move_to(&signer, tree)
+    }
+
+    //
+    // TEST ONLY FUNCTIONS
+    //
+
+    #[test_only]
+    fun inorder<V: store + drop>(tree: &Tree<V>): vector<u128> {
+        let inorderVector = &mut vector::empty<u128>();
+        if (!is_empty(tree)) {
+            let treeRootNode = tree.rootNodeKey;
+            inorder_starting_at_node(tree, inorderVector, treeRootNode);
+        };
+        return *inorderVector
+    }
+
+    #[test_only]
+    fun inorder_starting_at_node<V: store + drop>(tree: &Tree<V>, results: &mut vector<u128>, currentNodeKey: u128) {
+        let currentNode = node_with_key(tree, currentNodeKey);
+        if (currentNode.leftChildNodeKeyIsSet) {
+            inorder_starting_at_node(tree, results, currentNode.leftChildNodeKey)
+        };
+        vector::push_back(results, currentNodeKey);
+        if (currentNode.rightChildNodeKeyIsSet) {
+            inorder_starting_at_node(tree, results, currentNode.rightChildNodeKey)
+        };
+    }
+
+    #[test_only]
+    fun inorder_string_with_tree(tree: &Tree<u128>): String {
+        let inorderKeys = inorder(tree);
+        let i = 0;
+        let buffer = &mut string::utf8(b"");
+        let len = vector::length(&inorderKeys);
+        while (i < len) {
+            let key = *vector::borrow(&inorderKeys, i);
+            string::append(buffer, string_with_node(tree, key));
+            i = i + 1;
+            if (i < len) {
+                string::append(buffer, string::utf8(b", "));
+            }
+        };
+        *buffer
+    }
+
+    #[test_only]
+    fun string_with_node(tree: &Tree<u128>, key: u128): String {
+        let node = node_with_key(tree, key);
+        let buffer = &mut string::utf8(b"");
+        string::append(buffer, to_string_u128(key));
+        string::append(buffer, string::utf8(if (is_node_red(tree, key)) b"(R)" else b"(B)"));
+        if (node.parentNodeKeyIsSet) {
+            string::append(buffer, string::utf8(b" "));
+            string::append(buffer, to_string_u128(node.parentNodeKey));
+        } else {
+            string::append(buffer, string::utf8(b" root"));
+        };
+        if (node.leftChildNodeKeyIsSet) {
+            string::append(buffer, string::utf8(b" "));
+            string::append(buffer, to_string_u128(node.leftChildNodeKey));
+        } else {
+            string::append(buffer, string::utf8(b" _"));
+        };
+        if (node.rightChildNodeKeyIsSet) {
+            string::append(buffer, string::utf8(b" "));
+            string::append(buffer, to_string_u128(node.rightChildNodeKey));
+        } else {
+            string::append(buffer, string::utf8(b" _"));
+        };
+        string::append(buffer, string::utf8(b": ["));
+        string::append(buffer, to_string_vector(values_at(tree, key), b", "));
+        string::append(buffer, string::utf8(b"]"));
+        *buffer
+    }
+
+    #[test_only]
+    fun assert_inorder_tree(tree: &Tree<u128>, byteString: vector<u8>) {
+        assert!(*string::bytes(&inorder_string_with_tree(tree)) == byteString, 0);
+    }
+
+    #[test_only]
+    fun print_tree(tree: &Tree<u128>) {
+        std::debug::print(string::bytes(&inorder_string_with_tree(tree)));
+    }
+
+    #[test_only]
+    fun print_node(tree: &Tree<u128>, key: u128) {
+        std::debug::print(string::bytes(&string_with_node(tree, key)));
+    }
+
+    #[test_only]
+    fun assert_red_black_tree(tree: &Tree<u128>) {
+        // Condition 1. The root node must be black!
+        assert!(!is_node_red(tree, tree.rootNodeKey), 0)
+        // TODO: Add the rest of the conditions!
     }
 }
