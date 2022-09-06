@@ -56,7 +56,7 @@ module ferum_std::binary_search_tree {
     /// PUBLIC ACCESSORS
     ///
 
-    public fun isEmpty<V: store + drop>(tree: &Tree<V>): bool {
+    public fun is_empty<V: store + drop>(tree: &Tree<V>): bool {
         tree.length == 0
     }
 
@@ -65,26 +65,26 @@ module ferum_std::binary_search_tree {
     }
 
     public fun peek<V: store + drop>(tree: &Tree<V>): (u128, &V) {
-        assert!(!isEmpty(tree), TREE_IS_EMPTY);
+        assert!(!is_empty(tree), TREE_IS_EMPTY);
         let rootNode = root_node(tree);
         let rootNodeFirstValue = vector::borrow<V>(&rootNode.values, 0);
         (tree.rootNodeKey, rootNodeFirstValue)
     }
 
-    public fun containsKey<V: store + drop>(tree: &Tree<V>, key: u128): bool {
+    public fun contains_key<V: store + drop>(tree: &Tree<V>, key: u128): bool {
         table::contains(&tree.nodes, key)
     }
 
-    public fun valueAtKey<V: store + drop>(tree: &Tree<V>, key: u128): &V {
-        assert!(!isEmpty(tree), TREE_IS_EMPTY);
-        assert!(containsKey(tree, key), KEY_NOT_SET);
+    public fun value_at<V: store + drop>(tree: &Tree<V>, key: u128): &V {
+        assert!(!is_empty(tree), TREE_IS_EMPTY);
+        assert!(contains_key(tree, key), KEY_NOT_SET);
         let node = node_with_key(tree, key);
         vector::borrow<V>(&node.values, 0)
     }
 
-    public fun valuesAtKey<V: store + drop>(tree: &Tree<V>, key: u128): &vector<V> {
-        assert!(!isEmpty(tree), TREE_IS_EMPTY);
-        assert!(containsKey(tree, key), KEY_NOT_SET);
+    public fun values_at<V: store + drop>(tree: &Tree<V>, key: u128): &vector<V> {
+        assert!(!is_empty(tree), TREE_IS_EMPTY);
+        assert!(contains_key(tree, key), KEY_NOT_SET);
         let node = node_with_key(tree, key);
         &node.values
     }
@@ -94,7 +94,7 @@ module ferum_std::binary_search_tree {
     ///
 
     fun root_node<V: store + drop>(tree: &Tree<V>): &Node<V> {
-        assert!(!isEmpty(tree), TREE_IS_EMPTY);
+        assert!(!is_empty(tree), TREE_IS_EMPTY);
         node_with_key(tree, tree.rootNodeKey)
     }
 
@@ -113,12 +113,20 @@ module ferum_std::binary_search_tree {
         node_with_key(tree, key).isRed
     }
 
+    fun has_left_child<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
+        node_with_key(tree, nodeKey).leftChildNodeKeyIsSet
+    }
+
+    fun has_right_child<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
+        node_with_key(tree, nodeKey).rightChildNodeKeyIsSet
+    }
+
     ///
     /// INSERTION
     ///
 
     public fun insert<V: store + drop>(tree: &mut Tree<V>, key: u128, value: V) {
-        if (isEmpty(tree)) {
+        if (is_empty(tree)) {
             // If the tree is empty, instantiate a new root!
             let rootNode = leafNode<V>(key, value);
             tree.length = tree.length + 1;
@@ -165,10 +173,34 @@ module ferum_std::binary_search_tree {
         }
     }
 
+    fun leafNode<V: store + drop>(key: u128, value: V): Node<V> {
+        Node {
+            key,
+            values:vector::singleton(value),
+            parentNodeKey: 0,
+            leftChildNodeKey: 0,
+            rightChildNodeKey: 0,
+            parentNodeKeyIsSet: false,
+            leftChildNodeKeyIsSet: false,
+            rightChildNodeKeyIsSet: false,
+            isRed: false,
+        }
+    }
+
+    fun leaf_node_with_parent<V: store + drop>(key: u128, parentKey: u128, value: V): Node<V> {
+        let node = leafNode(key, value);
+        node.parentNodeKey = parentKey;
+        node.parentNodeKeyIsSet = true;
+        node
+    }
+
+    ///
+    /// ROTATIONS
+    ///
+
     // Good example to follow is here, https://www.programiz.com/dsa/red-black-tree
     // We renaming x and y, with parent and child to make it a bit more concrete.
     fun rotate_left<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, childNodeKey: u128) {
-
         // 1. If child has a left subtree, assign parent as the new parent of the left subtree of the child.
         if (has_left_child(tree, childNodeKey)) {
             let leftGrandchildNodeKey = node_with_key(tree, childNodeKey).leftChildNodeKey;
@@ -179,6 +211,10 @@ module ferum_std::binary_search_tree {
             let parent = node_with_key_mut(tree, parentNodeKey);
             parent.rightChildNodeKey = leftGrandchildNodeKey;
             parent.rightChildNodeKeyIsSet = true;
+        } else {
+            // If the child node doesn't have a left subtree, we must disconnect the parent from the child.
+            let parent = node_with_key_mut(tree, parentNodeKey);
+            parent.rightChildNodeKeyIsSet = false;
         };
 
         // 2. Swap the parents; the child should point to the grandparent, if one exists (else, it's root).
@@ -211,6 +247,20 @@ module ferum_std::binary_search_tree {
     }
 
     #[test(signer = @0x345)]
+    fun test_rotate_left_with_root(signer: signer) {
+        let tree = new<u128>();
+        insert(&mut tree, 10, 0);
+        insert(&mut tree, 4, 0);
+        insert(&mut tree, 15, 0);
+        insert(&mut tree, 14, 0);
+        insert(&mut tree, 16, 0);
+        assert_inorder_tree(&tree, b"4(B) 10 _ _: [0], 10(B) root 4 15: [0], 14(B) 15 _ _: [0], 15(B) 10 14 16: [0], 16(B) 15 _ _: [0]");
+        rotate_left(&mut tree, 10, 15);
+        assert_inorder_tree(&tree, b"4(B) 10 _ _: [0], 10(B) 15 4 14: [0], 14(B) 10 _ _: [0], 15(B) root 10 16: [0], 16(B) 15 _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
     fun test_rotate_left(signer: signer) {
         let tree = new<u128>();
         insert(&mut tree, 10, 0);
@@ -218,15 +268,16 @@ module ferum_std::binary_search_tree {
         insert(&mut tree, 15, 0);
         insert(&mut tree, 14, 0);
         insert(&mut tree, 16, 0);
-        assert_inorder_tree(&tree, b"4(B) 10: [0], 10(B) root: [0], 14(B) 15: [0], 15(B) 10: [0], 16(B) 15: [0]");
-        rotate_left(&mut tree, 10, 15);
+        assert_inorder_tree(&tree, b"4(B) 10 _ _: [0], 10(B) root 4 15: [0], 14(B) 15 _ _: [0], 15(B) 10 14 16: [0], 16(B) 15 _ _: [0]");
+        rotate_left(&mut tree, 15, 16);
+        assert_inorder_tree(&tree, b"4(B) 10 _ _: [0], 10(B) root 4 16: [0], 14(B) 15 _ _: [0], 15(B) 16 14 _: [0], 16(B) 10 15 _: [0]");
         move_to(&signer, tree)
     }
 
     #[test_only]
     fun inorder<V: store + drop>(tree: &Tree<V>): vector<u128> {
         let inorderVector = &mut vector::empty<u128>();
-        if (!isEmpty(tree)) {
+        if (!is_empty(tree)) {
             let treeRootNode = tree.rootNodeKey;
             inorder_starting_at_node(tree, inorderVector, treeRootNode);
         };
@@ -246,9 +297,7 @@ module ferum_std::binary_search_tree {
     }
 
     #[test_only]
-    /// Creates key_1 (R|B) parent_key | root: [v1, v2, v3], key_2 (R|B) parent_key | root: [v1, v2, v3] string for testing
-    /// purposes.
-    fun inorder_string_with_values(tree: &Tree<u128>): String {
+    fun inorder_string_with_tree(tree: &Tree<u128>): String {
         let inorderKeys = inorder(tree);
         let i = 0;
         let buffer = &mut string::utf8(b"");
@@ -256,18 +305,7 @@ module ferum_std::binary_search_tree {
         while (i < len) {
             // Appends "key: [v1, v2, v3]" with an optional comma separator at the end.
             let key = *vector::borrow(&inorderKeys, i);
-            let node = node_with_key(tree, key);
-            string::append(buffer, to_string_u128(key));
-            string::append(buffer, string::utf8(if (is_node_red(tree, key)) b"(R)" else b"(B)"));
-            if (node.parentNodeKeyIsSet) {
-                string::append(buffer, string::utf8(b" "));
-                string::append(buffer, to_string_u128(node.parentNodeKey));
-            } else {
-                string::append(buffer, string::utf8(b" root"));
-            };
-            string::append(buffer, string::utf8(b": ["));
-            string::append(buffer, to_string_vector(valuesAtKey(tree, key), b", "));
-            string::append(buffer, string::utf8(b"]"));
+            string::append(buffer, string_with_node(tree, key));
             i = i + 1;
             if (i < len) {
                 string::append(buffer, string::utf8(b", "));
@@ -277,23 +315,63 @@ module ferum_std::binary_search_tree {
     }
 
     #[test_only]
+    fun string_with_node(tree: &Tree<u128>, key: u128): String {
+        let node = node_with_key(tree, key);
+        let buffer = &mut string::utf8(b"");
+        string::append(buffer, to_string_u128(key));
+        string::append(buffer, string::utf8(if (is_node_red(tree, key)) b"(R)" else b"(B)"));
+        if (node.parentNodeKeyIsSet) {
+            string::append(buffer, string::utf8(b" "));
+            string::append(buffer, to_string_u128(node.parentNodeKey));
+        } else {
+            string::append(buffer, string::utf8(b" root"));
+        };
+        if (node.leftChildNodeKeyIsSet) {
+            string::append(buffer, string::utf8(b" "));
+            string::append(buffer, to_string_u128(node.leftChildNodeKey));
+        } else {
+            string::append(buffer, string::utf8(b" _"));
+        };
+        if (node.rightChildNodeKeyIsSet) {
+            string::append(buffer, string::utf8(b" "));
+            string::append(buffer, to_string_u128(node.rightChildNodeKey));
+        } else {
+            string::append(buffer, string::utf8(b" _"));
+        };
+        string::append(buffer, string::utf8(b": ["));
+        string::append(buffer, to_string_vector(values_at(tree, key), b", "));
+        string::append(buffer, string::utf8(b"]"));
+        *buffer
+    }
+
+    #[test_only]
     fun assert_inorder_tree(tree: &Tree<u128>, byteString: vector<u8>) {
-        std::debug::print(string::bytes(&inorder_string_with_values(tree)));
-        assert!(*string::bytes(&inorder_string_with_values(tree)) == byteString, 0);
+        assert!(*string::bytes(&inorder_string_with_tree(tree)) == byteString, 0);
+    }
+
+    #[test_only]
+    fun print_tree(tree: &Tree<u128>) {
+        std::debug::print(string::bytes(&inorder_string_with_tree(tree)));
+    }
+
+    #[test_only]
+    fun print_node(tree: &Tree<u128>, key: u128) {
+        std::debug::print(string::bytes(&string_with_node(tree, key)));
     }
 
     #[test_only]
     fun assert_red_black_tree(tree: &Tree<u128>) {
         // Condition 1. The root node must be black!
         assert!(!is_node_red(tree, tree.rootNodeKey), 0)
+        // TODO: Add the rest of the conditions!
     }
 
     #[test(signer = @0x345)]
     fun test_is_empty_with_empty_tree(signer: signer) {
         let tree = new<u128>();
-        assert!(isEmpty<u128>(&tree), 0);
+        assert!(is_empty<u128>(&tree), 0);
         assert!(length<u128>(&tree) == 0, 0);
-        assert!(!containsKey(&tree, 10), 0);
+        assert!(!contains_key(&tree, 10), 0);
         assert_inorder_tree(&tree, b"");
         move_to(&signer, tree)
     }
@@ -302,10 +380,10 @@ module ferum_std::binary_search_tree {
     fun test_insert_with_empty_tree(signer: signer) {
         let tree = new<u128>();
         insert(&mut tree, 10, 100);
-        assert!(!isEmpty<u128>(&tree), 0);
+        assert!(!is_empty<u128>(&tree), 0);
         assert!(length<u128>(&tree) == 1, 0);
-        assert!(containsKey(&tree, 10), 0);
-        assert_inorder_tree(&tree, b"10(B) root: [100]");
+        assert!(contains_key(&tree, 10), 0);
+        assert_inorder_tree(&tree, b"10(B) root _ _: [100]");
         move_to(&signer, tree)
     }
 
@@ -314,10 +392,10 @@ module ferum_std::binary_search_tree {
         let tree = new<u128>();
         insert(&mut tree, 10, 10);
         insert(&mut tree, 10, 100);
-        assert!(!isEmpty<u128>(&tree), 0);
+        assert!(!is_empty<u128>(&tree), 0);
         assert!(length<u128>(&tree) == 2, 0);
-        assert!(containsKey(&tree, 10), 0);
-        assert_inorder_tree(&tree, b"10(B) root: [10, 100]");
+        assert!(contains_key(&tree, 10), 0);
+        assert_inorder_tree(&tree, b"10(B) root _ _: [10, 100]");
         move_to(&signer, tree)
     }
 
@@ -327,11 +405,11 @@ module ferum_std::binary_search_tree {
         insert(&mut tree, 10, 10);
         insert(&mut tree, 8, 10);
         insert(&mut tree, 8, 1);
-        assert!(!isEmpty<u128>(&tree), 0);
+        assert!(!is_empty<u128>(&tree), 0);
         assert!(length<u128>(&tree) == 3, 0);
-        assert!(containsKey(&tree, 10), 0);
-        assert!(containsKey(&tree, 8), 0);
-        assert_inorder_tree(&tree, b" 8(B) 10: [10, 1], 10(B) root: [10]");
+        assert!(contains_key(&tree, 10), 0);
+        assert!(contains_key(&tree, 8), 0);
+        assert_inorder_tree(&tree, b"8(B) 10 _ _: [10, 1], 10(B) root 8 _: [10]");
         move_to(&signer, tree)
     }
 
@@ -341,11 +419,11 @@ module ferum_std::binary_search_tree {
         insert(&mut tree, 10, 10);
         insert(&mut tree, 12, 100);
         insert(&mut tree, 12, 1000);
-        assert!(!isEmpty<u128>(&tree), 0);
+        assert!(!is_empty<u128>(&tree), 0);
         assert!(length<u128>(&tree) == 3, 0);
-        assert!(containsKey(&tree, 10), 0);
-        assert!(containsKey(&tree, 12), 0);
-        assert_inorder_tree(&tree, b"10(B) root: [10], 12(B) 10: [100, 1000]");
+        assert!(contains_key(&tree, 10), 0);
+        assert!(contains_key(&tree, 12), 0);
+        assert_inorder_tree(&tree, b"10(B) root _ 12: [10], 12(B) 10 _ _: [100, 1000]");
         move_to(&signer, tree)
     }
 
@@ -354,13 +432,13 @@ module ferum_std::binary_search_tree {
         let tree = new<u128>();
         insert(&mut tree, 10, 100);
         insert(&mut tree, 8, 10);
-        assert!(!isEmpty<u128>(&tree), 0);
+        assert!(!is_empty<u128>(&tree), 0);
         assert!(length<u128>(&tree) == 2, 0);
-        assert!(containsKey(&tree, 10), 0);
-        assert!(containsKey(&tree, 8), 0);
-        assert!(*valueAtKey(&tree, 8) == 10, 0);
-        assert!(*valueAtKey(&tree, 10) == 100, 0);
-        assert_inorder_tree(&tree, b"8(B) 10: [10], 10(B) root: [100]");
+        assert!(contains_key(&tree, 10), 0);
+        assert!(contains_key(&tree, 8), 0);
+        assert!(*value_at(&tree, 8) == 10, 0);
+        assert!(*value_at(&tree, 10) == 100, 0);
+        assert_inorder_tree(&tree, b"8(B) 10 _ _: [10], 10(B) root 8 _: [100]");
         move_to(&signer, tree)
     }
 
@@ -370,15 +448,15 @@ module ferum_std::binary_search_tree {
         insert(&mut tree, 10, 100);
         insert(&mut tree, 8, 10);
         insert(&mut tree, 6, 1);
-        assert!(!isEmpty<u128>(&tree), 0);
+        assert!(!is_empty<u128>(&tree), 0);
         assert!(length<u128>(&tree) == 3, 0);
-        assert!(containsKey(&tree, 10), 0);
-        assert!(containsKey(&tree, 8), 0);
-        assert!(containsKey(&tree, 6), 0);
-        assert!(*valueAtKey(&tree, 10) == 100, 0);
-        assert!(*valueAtKey(&tree, 8) == 10, 0);
-        assert!(*valueAtKey(&tree, 6) == 1, 0);
-        assert_inorder_tree(&tree, b"6(B) 8: [1], 10(B) root: [100], 8(B) 10: [10]");
+        assert!(contains_key(&tree, 10), 0);
+        assert!(contains_key(&tree, 8), 0);
+        assert!(contains_key(&tree, 6), 0);
+        assert!(*value_at(&tree, 10) == 100, 0);
+        assert!(*value_at(&tree, 8) == 10, 0);
+        assert!(*value_at(&tree, 6) == 1, 0);
+        assert_inorder_tree(&tree, b"6(B) 8 _ _: [1], 8(B) 10 6 _: [10], 10(B) root 8 _: [100]");
         move_to(&signer, tree)
     }
 
@@ -387,13 +465,13 @@ module ferum_std::binary_search_tree {
         let tree = new<u128>();
         insert(&mut tree, 10, 100);
         insert(&mut tree, 12, 1000);
-        assert!(!isEmpty<u128>(&tree), 0);
+        assert!(!is_empty<u128>(&tree), 0);
         assert!(length<u128>(&tree) == 2, 0);
-        assert!(containsKey(&tree, 10), 0);
-        assert!(containsKey(&tree, 12), 0);
-        assert!(*valueAtKey(&tree, 10) == 100, 0);
-        assert!(*valueAtKey(&tree, 12) == 1000, 0);
-        assert_inorder_tree(&tree, b"10(B) root: [100], 12(B) 10: [1000]");
+        assert!(contains_key(&tree, 10), 0);
+        assert!(contains_key(&tree, 12), 0);
+        assert!(*value_at(&tree, 10) == 100, 0);
+        assert!(*value_at(&tree, 12) == 1000, 0);
+        assert_inorder_tree(&tree, b"10(B) root _ 12: [100], 12(B) 10 _ _: [1000]");
         move_to(&signer, tree)
     }
 
@@ -403,15 +481,15 @@ module ferum_std::binary_search_tree {
         insert(&mut tree, 10, 100);
         insert(&mut tree, 12, 1000);
         insert(&mut tree, 14, 10000);
-        assert!(!isEmpty<u128>(&tree), 0);
+        assert!(!is_empty<u128>(&tree), 0);
         assert!(length<u128>(&tree) == 3, 0);
-        assert!(containsKey(&tree, 10), 0);
-        assert!(containsKey(&tree, 12), 0);
-        assert!(containsKey(&tree, 14), 0);
-        assert!(*valueAtKey(&tree, 10) == 100, 0);
-        assert!(*valueAtKey(&tree, 12) == 1000, 0);
-        assert!(*valueAtKey(&tree, 14) == 10000, 0);
-        assert_inorder_tree(&tree, b"10(B) root: [100], 12(B) 10: [1000], 14(B) 12: [10000]");
+        assert!(contains_key(&tree, 10), 0);
+        assert!(contains_key(&tree, 12), 0);
+        assert!(contains_key(&tree, 14), 0);
+        assert!(*value_at(&tree, 10) == 100, 0);
+        assert!(*value_at(&tree, 12) == 1000, 0);
+        assert!(*value_at(&tree, 14) == 10000, 0);
+        assert_inorder_tree(&tree, b"10(B) root _ 12: [100], 12(B) 10 _ 14: [1000], 14(B) 12 _ _: [10000]");
         move_to(&signer, tree)
     }
 
@@ -422,9 +500,9 @@ module ferum_std::binary_search_tree {
         insert(&mut tree, 8, 10);
         insert(&mut tree, 12, 1000);
         insert(&mut tree, 6, 5);
-        assert!(!isEmpty<u128>(&tree), 0);
+        assert!(!is_empty<u128>(&tree), 0);
         assert!(length<u128>(&tree) == 4, 0);
-        assert_inorder_tree(&tree, b"6(B) 8: [5], 8(B) 10: [10], 10(B) root: [100], 12(B) 10: [1000]");
+        assert_inorder_tree(&tree, b"6(B) 8 _ _: [5], 8(B) 10 6 _: [10], 10(B) root 8 12: [100], 12(B) 10 _ _: [1000]");
         move_to(&signer, tree)
     }
 
@@ -432,54 +510,11 @@ module ferum_std::binary_search_tree {
     fun test_peek(signer: signer) {
         let tree = new<u128>();
         insert(&mut tree, 10, 100);
-        assert!(!isEmpty<u128>(&tree), 0);
+        assert!(!is_empty<u128>(&tree), 0);
         assert!(length<u128>(&tree) == 1, 0);
         let (key, value) = peek<u128>(&tree);
         assert!(key == 10, 0);
         assert!(*value == 100, 0);
         move_to(&signer, tree)
-    }
-
-    /// NODE HELPERS
-
-    fun leafNode<V: store + drop>(key: u128, value: V): Node<V> {
-        Node {
-            key,
-            values:vector::singleton(value),
-            parentNodeKey: 0,
-            leftChildNodeKey: 0,
-            rightChildNodeKey: 0,
-            parentNodeKeyIsSet: false,
-            leftChildNodeKeyIsSet: false,
-            rightChildNodeKeyIsSet: false,
-            isRed: false,
-        }
-    }
-
-    fun leaf_node_with_parent<V: store + drop>(key: u128, parentKey: u128, value: V): Node<V> {
-        let node = leafNode(key, value);
-        node.parentNodeKey = parentKey;
-        node.parentNodeKeyIsSet = true;
-        node
-    }
-
-    fun is_leaf_node<V: store + drop>(node: Node<V>): bool {
-        !node.rightChildNodeKeyIsSet && !node.leftChildNodeKeyIsSet
-    }
-
-    fun has_left_child<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
-        node_with_key(tree, nodeKey).leftChildNodeKeyIsSet
-    }
-
-    fun has_right_child<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
-        node_with_key(tree, nodeKey).rightChildNodeKeyIsSet
-    }
-
-    // NODE HELPERS TESTS
-
-    #[test]
-    fun test_is_leaf_node() {
-        let node = leafNode<u128>(10, 100);
-        assert!(is_leaf_node(node), 0);
     }
 }
