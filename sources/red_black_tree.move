@@ -1,6 +1,4 @@
-
-
-module ferum_std::binary_search_tree {
+module ferum_std::red_black_tree {
     use std::vector;
     use aptos_std::table;
     use ferum_std::test_utils::to_string_u128;
@@ -255,6 +253,16 @@ module ferum_std::binary_search_tree {
         };
     }
 
+    fun rotate_right<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, childNodeKey: u128) {
+        // 0. Check parent/child preconditions!
+        {
+            let parentNode = node_with_key(tree, parentNodeKey);
+            let childNode = node_with_key(tree, childNodeKey);
+            assert!(parentNode.leftChildNodeKey == childNodeKey, INVALID_ROTATION_NODES);
+            assert!(childNode.parentNodeKey == parentNodeKey, INVALID_ROTATION_NODES);
+        };
+    }
+
     #[test(signer = @0x345)]
     fun test_rotate_left_with_root(signer: signer) {
         let tree = new<u128>();
@@ -325,7 +333,6 @@ module ferum_std::binary_search_tree {
         let buffer = &mut string::utf8(b"");
         let len = vector::length(&inorderKeys);
         while (i < len) {
-            // Appends "key: [v1, v2, v3]" with an optional comma separator at the end.
             let key = *vector::borrow(&inorderKeys, i);
             string::append(buffer, string_with_node(tree, key));
             i = i + 1;
