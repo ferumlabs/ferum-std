@@ -13,6 +13,7 @@ module ferum_std::binary_search_tree {
     const TREE_IS_EMPTY: u64 = 0;
     const KEY_NOT_SET: u64 = 1;
     const NODE_NOT_FOUND: u64 = 2;
+    const INVALID_ROTATION_NODES: u64 = 3;
 
     ///
     /// STRUCTS
@@ -201,6 +202,14 @@ module ferum_std::binary_search_tree {
     // Good example to follow is here, https://www.programiz.com/dsa/red-black-tree
     // We renaming x and y, with parent and child to make it a bit more concrete.
     fun rotate_left<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, childNodeKey: u128) {
+        // 0. Check parent/child preconditions!
+        {
+            let parentNode = node_with_key(tree, parentNodeKey);
+            let childNode = node_with_key(tree, childNodeKey);
+            assert!(parentNode.rightChildNodeKey == childNodeKey, INVALID_ROTATION_NODES);
+            assert!(childNode.parentNodeKey == parentNodeKey, INVALID_ROTATION_NODES);
+        };
+
         // 1. If child has a left subtree, assign parent as the new parent of the left subtree of the child.
         if (has_left_child(tree, childNodeKey)) {
             let leftGrandchildNodeKey = node_with_key(tree, childNodeKey).leftChildNodeKey;
@@ -271,6 +280,19 @@ module ferum_std::binary_search_tree {
         assert_inorder_tree(&tree, b"4(B) 10 _ _: [0], 10(B) root 4 15: [0], 14(B) 15 _ _: [0], 15(B) 10 14 16: [0], 16(B) 15 _ _: [0]");
         rotate_left(&mut tree, 15, 16);
         assert_inorder_tree(&tree, b"4(B) 10 _ _: [0], 10(B) root 4 16: [0], 14(B) 15 _ _: [0], 15(B) 16 14 _: [0], 16(B) 10 15 _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    #[expected_failure(abort_code = 3)]
+    fun test_rotate_left_with_incorrect_nodes(signer: signer) {
+        let tree = new<u128>();
+        insert(&mut tree, 10, 0);
+        insert(&mut tree, 4, 0);
+        insert(&mut tree, 15, 0);
+        insert(&mut tree, 14, 0);
+        insert(&mut tree, 16, 0);
+        rotate_left(&mut tree, 10, 16);
         move_to(&signer, tree)
     }
 
