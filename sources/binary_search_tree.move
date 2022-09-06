@@ -33,12 +33,12 @@ module ferum_std::binary_search_tree {
         // We could also use a sentinel value, but this could collide with a real key, and that's bad.
         parentNodeKey: u128,
         leftChildNodeKey: u128,
-        rigthChildNodeKey: u128,
+        rightChildNodeKey: u128,
 
         // No null or optinal values, so we need to indicate whether the children have been set.
         parentNodeKeyIsSet: bool,
         leftChildNodeKeyIsSet: bool,
-        rigthChildNodeKeyIsSet: bool,
+        rightChildNodeKeyIsSet: bool,
 
         // Used in the self-balancing implementation for a red-black tree; true if red, fasel if black.
         isRed: bool,
@@ -151,18 +151,77 @@ module ferum_std::binary_search_tree {
             }
         } else if (key > node.key) {
             // Key is lower than the current value, so go towards right.
-            if (node.rigthChildNodeKeyIsSet) {
-                insert_starting_at_node(tree, key, value, node.rigthChildNodeKey);
+            if (node.rightChildNodeKeyIsSet) {
+                insert_starting_at_node(tree, key, value, node.rightChildNodeKey);
             } else {
                 // Insert new right child node.
                 let newNode = leafNodeWithParent(key, nodeKey, value);
-                node.rigthChildNodeKey = key;
-                node.rigthChildNodeKeyIsSet = true;
+                node.rightChildNodeKey = key;
+                node.rightChildNodeKeyIsSet = true;
                 freeze(node);
                 table::add(&mut tree.nodes, key, newNode);
                 tree.length = tree.length + 1;
             }
         }
+    }
+
+
+    // Good example to follow is here, https://www.programiz.com/dsa/red-black-tree
+    // We renaming x and y, with parent and child to make it a bit more concrete.
+    fun rotateLeft<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, childNodeKey: u128) {
+
+        let parent = node_wity_key_mut(tree, parentNodeKey);
+        let childNode = node_wity_key_mut(tree, childNodeKey);
+
+        // 1. If child has a left subtree, assign parent as the new parent of the left subtree of the child.
+        if (childNode.leftChildNodeKeyIsSet) {
+            let leftChildOfChild = node_wity_key_mut(tree, childNode.leftChildNodeKey);
+            // a. Fix the link upwards.
+            leftChildOfChild.parentNodeKey = parentNodeKey;
+            // b. Parent node's right child now points to child's left substree.
+            parent.rightChildNodeKey = childNode.leftChildNodeKey;
+            parent.rightChildNodeKeyIsSet = true;
+        };
+
+        // 2. Swap the parents; the child should point to the grandparent, if one exists (else, it's root).
+        if (parent.parentNodeKeyIsSet) {
+            let grandparentNodeKey = parent.parentNodeKey;
+            let grandparentNode = node_wity_key_mut(tree, grandparentNodeKey);
+            if (grandparentNode.leftChildNodeKeyIsSet && grandparentNode.leftChildNodeKey == parentNodeKey) {
+                grandparentNode.leftChildNodeKey = childNodeKey;
+            } else {
+                grandparentNode.rightChildNodeKey = childNodeKey;
+            };
+            childNode.parentNodeKey = grandparentNodeKey;
+        } else {
+            // The parent is root! The child must be promoted to root!
+            childNode.parentNodeKeyIsSet = false;
+            tree.rootNodeKey = childNode;
+        };
+
+        // 3. Make the child the new parent of the parent.
+        childNode.leftChildNodeKey = parentNodeKey;
+        childNode.leftChildNodeKeyIsSet = true;
+        parent.parentNodeKey = childNodeKey;
+        parent.parentNodeKeyIsSet = true;
+    }
+//
+//    fun rotateRight<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, childNodeKey: u128) {
+//
+//
+//    }
+
+    #[test(signer = @0x345)]
+    fun test_rotate_left(signer: signer) {
+        let tree = new<u128>();
+        insert(&mut tree, 10, 0);
+        insert(&mut tree, 4, 0);
+        insert(&mut tree, 15, 0);
+        insert(&mut tree, 14, 0);
+        insert(&mut tree, 16, 0);
+        assert_preorder_tree(&tree, b"10(B) root: [0], 4(B) 10: [0], 15(B) 10: [0], 14(B) 15: [0], 16(B) 15: [0]");
+        rotateLeft(&mut tree, 10, 15);
+        move_to(&signer, tree)
     }
 
     #[test_only]
@@ -182,8 +241,8 @@ module ferum_std::binary_search_tree {
         if (currentNode.leftChildNodeKeyIsSet) {
             preorder_starting_at_node(tree, results, currentNode.leftChildNodeKey)
         };
-        if (currentNode.rigthChildNodeKeyIsSet) {
-            preorder_starting_at_node(tree, results, currentNode.rigthChildNodeKey)
+        if (currentNode.rightChildNodeKeyIsSet) {
+            preorder_starting_at_node(tree, results, currentNode.rightChildNodeKey)
         }
     }
 
@@ -219,9 +278,15 @@ module ferum_std::binary_search_tree {
     }
 
     #[test_only]
-    public fun assert_preorder_tree(tree: &Tree<u128>, byteString: vector<u8>) {
+    fun assert_preorder_tree(tree: &Tree<u128>, byteString: vector<u8>) {
         std::debug::print(string::bytes(&preorder_string_with_values(tree)));
         assert!(*string::bytes(&preorder_string_with_values(tree)) == byteString, 0);
+    }
+
+    #[test_only]
+    fun assert_red_black_tree(tree: &Tree<u128>) {
+        // Condition 1. The root node must be black!
+        assert!(!is_node_red(tree, tree.rootNodeKey), 0)
     }
 
     #[test(signer = @0x345)]
@@ -384,10 +449,10 @@ module ferum_std::binary_search_tree {
             values:vector::singleton(value),
             parentNodeKey: 0,
             leftChildNodeKey: 0,
-            rigthChildNodeKey: 0,
+            rightChildNodeKey: 0,
             parentNodeKeyIsSet: false,
             leftChildNodeKeyIsSet: false,
-            rigthChildNodeKeyIsSet: false,
+            rightChildNodeKeyIsSet: false,
             isRed: false,
         }
     }
@@ -400,7 +465,7 @@ module ferum_std::binary_search_tree {
     }
 
     fun isLeafNode<V: store + drop>(node: Node<V>): bool {
-        !node.rigthChildNodeKeyIsSet && !node.leftChildNodeKeyIsSet
+        !node.rightChildNodeKeyIsSet && !node.leftChildNodeKeyIsSet
     }
 
     // NODE HELPERS TESTS
