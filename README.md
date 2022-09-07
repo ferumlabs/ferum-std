@@ -16,6 +16,8 @@ AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir 
 FerumSTD = { git = "https://github.com/ferum-dex/ferum-std.git", rev = "main" }
 ```
 
+Use `FerumSTD = { git = "https://github.com/ferum-dex/ferum-std.git", rev = "main" }` for mainnet and `FerumSTD = { git = "https://github.com/ferum-dex/ferum-std.git", rev = "devnet" }` for devnet.
+
 2\. Run `aptos move compile`; sometimes you may need to run `aptos move clean`.
 
 3\. Import a module and start using it. For example: &#x20;
