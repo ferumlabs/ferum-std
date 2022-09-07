@@ -167,6 +167,13 @@ module ferum_std::red_black_tree {
         tree.rootNodeKey == nodeKey
     }
 
+    fun set_root_node<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
+        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
+        let node = node_with_key_mut(tree, nodeKey);
+        node.parentNodeKeyIsSet = false;
+        tree.rootNodeKey = nodeKey;
+    }
+
     fun has_parent<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
         assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
@@ -364,6 +371,90 @@ module ferum_std::red_black_tree {
         node.parentNodeKey = parentKey;
         node.parentNodeKeyIsSet = true;
         node
+    }
+
+    ///
+    /// DELETIONS
+    ///
+
+    public fun delete<V: store + drop>(_tree: &mut Tree<V>, _key: u128) {
+
+        //   int yOriginalColor = y.color;
+        //    if (z.left == TNULL) {
+        //      x = z.right;
+        //      rbTransplant(z, z.right);
+        //    } else if (z.right == TNULL) {
+        //      x = z.left;
+        //      rbTransplant(z, z.left);
+        //    } else {
+        //      y = minimum(z.right);
+        //      yOriginalColor = y.color;
+        //      x = y.right;
+        //      if (y.parent == z) {
+        //        x.parent = y;
+        //      } else {
+        //        rbTransplant(y, y.right);
+        //        y.right = z.right;
+        //        y.right.parent = y;
+        //      }
+        //
+        //      rbTransplant(z, y);
+        //      y.left = z.left;
+        //      y.left.parent = y;
+        //      y.color = z.color;
+        //    }
+        //    if (yOriginalColor == 0) {
+        //      fixDelete(x);
+        //    }
+    }
+
+    fun transplant<V: store + drop>(tree: &mut Tree<V>, parentKey: u128, childKey: u128) {
+        assert!(!is_empty(tree), TREE_IS_EMPTY);
+        assert!(table::contains(&tree.nodes, parentKey), NODE_NOT_FOUND);
+        assert!(table::contains(&tree.nodes, childKey), NODE_NOT_FOUND);
+        if (is_root_node(tree, parentKey)) {
+            set_root_node(tree, childKey);
+        } else {
+            let grandparentKey = parent_node_key(tree, parentKey);
+            let grandparentNode = node_with_key_mut(tree, grandparentKey);
+            if (parentKey == grandparentNode.leftChildNodeKey) {
+                grandparentNode.leftChildNodeKey = childKey;
+            } else {
+                grandparentNode.rightChildNodeKey = childKey;
+            };
+            let childNode = node_with_key_mut(tree, childKey);
+            childNode.parentNodeKey = grandparentKey;
+        }
+    }
+
+    #[test(signer = @0x345)]
+    fun test_transplant_root(signer: signer) {
+        let tree = new<u128>();
+        insert(&mut tree, 8, 0);
+        insert(&mut tree, 6, 0);
+        insert(&mut tree, 7, 0);
+        assert_inorder_tree(&tree, b"6(R) 7 _ _: [0], 7(B) root 6 8: [0], 8(R) 7 _ _: [0]");
+        transplant(&mut tree, 7, 6);
+        assert!(is_root_node(&tree, 6), 0);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_transplant(signer: signer) {
+        let tree = new<u128>();
+        insert(&mut tree, 8, 0);
+        insert(&mut tree, 6, 0);
+        insert(&mut tree, 7, 0);
+        insert(&mut tree, 9, 0);
+        insert(&mut tree, 5, 0);
+        assert_inorder_tree(&tree, b"5(R) 6 _ _: [0], 6(B) 7 5 _: [0], 7(B) root 6 8: [0], 8(B) 7 _ 9: [0], 9(R) 8 _ _: [0]");
+        transplant(&mut tree, 8, 9);
+        transplant(&mut tree, 6, 5);
+        let rootNode = root_node(&tree);
+        assert!(rootNode.rightChildNodeKey == 9, 0);
+        assert!(rootNode.leftChildNodeKey == 5, 0);
+        assert!(is_root_node(&tree, 7), 0);
+        move_to(&signer, tree)
     }
 
     ///
@@ -610,9 +701,7 @@ module ferum_std::red_black_tree {
         // left/right node, depending which direction the parent belonged.
         if (is_root_node(tree, parentNodeKey)) {
             // The parent is root! The child must be promoted to root!
-            let childNode = node_with_key_mut(tree, childNodeKey);
-            childNode.parentNodeKeyIsSet = false;
-            tree.rootNodeKey = childNodeKey;
+            set_root_node(tree, childNodeKey);
         } else {
             let grandparentNodeKey = node_with_key(tree, parentNodeKey).parentNodeKey;
             let grandparentNode = node_with_key_mut(tree, grandparentNodeKey);
