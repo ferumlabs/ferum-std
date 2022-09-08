@@ -161,10 +161,21 @@ module ferum_std::red_black_tree {
         node_with_key(tree, nodeKey).rightChildNodeKey
     }
 
+    fun left_child_key<V: store + drop>(tree: &Tree<V>, nodeKey: u128): u128 {
+        assert!(has_left_child(tree, nodeKey), INVALID_KEY_ACCESS);
+        node_with_key(tree, nodeKey).leftChildNodeKey
+    }
+
     fun is_root_node<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
         assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
         tree.rootNodeKey == nodeKey
+    }
+
+    fun is_leaf_node<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
+        assert!(!is_empty(tree), TREE_IS_EMPTY);
+        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
+        !has_left_child(tree, nodeKey) && !has_right_child(tree, nodeKey)
     }
 
     fun set_root_node<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
@@ -182,9 +193,16 @@ module ferum_std::red_black_tree {
     }
 
     fun parent_node_key<V: store + drop>(tree: &Tree<V>, nodeKey: u128): u128 {
+        assert!(!is_empty(tree), TREE_IS_EMPTY);
         assert!(has_parent(tree, nodeKey), INVALID_KEY_ACCESS);
         let node = node_with_key(tree, nodeKey);
         node.parentNodeKey
+    }
+
+    fun parent_mut<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128): &mut Node<V> {
+        assert!(has_parent(tree, nodeKey), INVALID_KEY_ACCESS);
+        let parentKey = parent_node_key(tree, nodeKey);
+        node_with_key_mut(tree, parentKey)
     }
 
     fun has_grandparent<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
@@ -198,11 +216,62 @@ module ferum_std::red_black_tree {
         return false
     }
 
+    fun has_sibiling<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
+        assert!(!is_empty(tree), TREE_IS_EMPTY);
+        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
+        if (has_parent(tree, nodeKey)) {
+            let parentNodeKey = parent_node_key(tree, nodeKey);
+            let parent = node_with_key(tree, parentNodeKey);
+            return parent.leftChildNodeKeyIsSet && parent.rightChildNodeKeyIsSet
+        };
+        false
+    }
+
+    fun sibiling_node_key<V: store + drop>(tree: &Tree<V>, nodeKey: u128): u128 {
+        assert!(!is_empty(tree), TREE_IS_EMPTY);
+        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
+        assert!(has_sibiling(tree, nodeKey), INVALID_KEY_ACCESS);
+        let parentNodeKey = parent_node_key(tree, nodeKey);
+        let parent = node_with_key(tree, parentNodeKey);
+        if (parent.leftChildNodeKey == nodeKey) {
+            parent.rightChildNodeKey
+        } else {
+            parent.leftChildNodeKey
+        }
+    }
+
     fun grandparent_node_key<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128): u128 {
         assert!(has_grandparent(tree, nodeKey), INVALID_KEY_ACCESS);
         let node = node_with_key(tree, nodeKey);
         let parent = node_with_key(tree, node.parentNodeKey);
         parent.parentNodeKey
+    }
+
+    // Return the key of the node that would replace the node if it's deleted.
+    // For example, if it's a leaf node, there are not replacement nodes, so we return (false, 0).
+    fun successor_key<V: store + drop>(tree: &Tree<V>, nodeKey: u128): (bool, u128) { // (hasSuccessor, successorKey)
+        assert!(!is_empty(tree), TREE_IS_EMPTY);
+        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
+        if (has_left_child(tree, nodeKey) && has_right_child(tree, nodeKey)) {
+            (true, min_node_key_starting_at_node(tree, nodeKey))
+        } else if (has_left_child(tree, nodeKey)) {
+            (true, left_child_key(tree, nodeKey))
+        } else if (has_right_child(tree, nodeKey)) {
+            (true, right_child_key(tree, nodeKey))
+        } else {
+            (false, 0)
+        }
+    }
+
+    ///
+    /// MIN/MAX ACESSORS
+    ///
+
+    fun min_node_key_starting_at_node<V: store + drop>(tree: &Tree<V>, nodeKey: u128): u128 {
+        while(has_left_child(tree, nodeKey)) {
+            nodeKey = left_child_key(tree, nodeKey);
+        };
+        nodeKey
     }
 
     ///
@@ -213,6 +282,12 @@ module ferum_std::red_black_tree {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
         assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
         node_with_key(tree, nodeKey).isRed
+    }
+
+    fun is_black<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
+        assert!(!is_empty(tree), TREE_IS_EMPTY);
+        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
+        !is_red(tree, nodeKey)
     }
 
     fun is_parent_red<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
@@ -240,6 +315,13 @@ module ferum_std::red_black_tree {
         is_red(tree, leftChildKey)
     }
 
+    fun has_red_child<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
+        assert!(!is_empty(tree), TREE_IS_EMPTY);
+        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
+        has_right_child(tree, nodeKey) && is_right_child_red(tree, nodeKey) ||
+            has_left_child(tree, nodeKey) && is_left_child_red(tree, nodeKey)
+    }
+
     ///
     /// COLOR MARKERS
     ///
@@ -254,6 +336,12 @@ module ferum_std::red_black_tree {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
         assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
         node_with_key_mut(tree, nodeKey).isRed = false;
+    }
+
+    fun mark_color<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128, isRed: bool) {
+        assert!(!is_empty(tree), TREE_IS_EMPTY);
+        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
+        node_with_key_mut(tree, nodeKey).isRed = isRed;
     }
 
     fun mark_children_black<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
@@ -275,6 +363,15 @@ module ferum_std::red_black_tree {
             let rightNode = right_child_mut(tree, nodeKey);
             rightNode.isRed = isRed;
         };
+    }
+
+    fun mark_sibiling_red<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
+        assert!(!is_empty(tree), TREE_IS_EMPTY);
+        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
+        assert!(has_sibiling(tree, nodeKey), INVALID_KEY_ACCESS);
+        let sibilingNodeKey = sibiling_node_key(tree, nodeKey);
+        let sibilingNode = node_with_key_mut(tree, sibilingNodeKey);
+        sibilingNode.isRed = true
     }
 
     fun mark_parent_black<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
@@ -377,70 +474,183 @@ module ferum_std::red_black_tree {
     /// DELETIONS
     ///
 
-    public fun delete<V: store + drop>(_tree: &mut Tree<V>, _key: u128) {
+    public fun delete_node<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
+        let _log = nodeKey == 5;
 
-        //   int yOriginalColor = y.color;
-        //    if (z.left == TNULL) {
-        //      x = z.right;
-        //      rbTransplant(z, z.right);
-        //    } else if (z.right == TNULL) {
-        //      x = z.left;
-        //      rbTransplant(z, z.left);
-        //    } else {
-        //      y = minimum(z.right);
-        //      yOriginalColor = y.color;
-        //      x = y.right;
-        //      if (y.parent == z) {
-        //        x.parent = y;
-        //      } else {
-        //        rbTransplant(y, y.right);
-        //        y.right = z.right;
-        //        y.right.parent = y;
-        //      }
-        //
-        //      rbTransplant(z, y);
-        //      y.left = z.left;
-        //      y.left.parent = y;
-        //      y.color = z.color;
-        //    }
-        //    if (yOriginalColor == 0) {
-        //      fixDelete(x);
-        //    }
-    }
-
-    fun transplant<V: store + drop>(tree: &mut Tree<V>, parentKey: u128, childKey: u128) {
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, parentKey), NODE_NOT_FOUND);
-        assert!(table::contains(&tree.nodes, childKey), NODE_NOT_FOUND);
-        if (is_root_node(tree, parentKey)) {
-            set_root_node(tree, childKey);
-        } else {
-            let grandparentKey = parent_node_key(tree, parentKey);
-            let grandparentNode = node_with_key_mut(tree, grandparentKey);
-            if (parentKey == grandparentNode.leftChildNodeKey) {
-                grandparentNode.leftChildNodeKey = childKey;
-            } else {
-                grandparentNode.rightChildNodeKey = childKey;
+        if (is_leaf_node(tree, nodeKey)) {
+            // Case 1: Handle leaf node case. If it's the root, just delete the node. Otherwise, if
+            // the deleted node is black, there must be an imbalance; fix the double black!
+            if (is_root_node(tree, nodeKey)) {
+                drop_node(tree, nodeKey);
+            } else if (is_black(tree, nodeKey)) {
+                // The deletion of a black leaf causes an imbalance!
+                fix_double_black(tree, nodeKey);
             };
-            let childNode = node_with_key_mut(tree, childKey);
-            childNode.parentNodeKey = grandparentKey;
+            drop_node(tree, nodeKey);
+        } else if (has_left_child(tree, nodeKey) || has_right_child(tree, nodeKey)) {
+            let (_, successorKey) = successor_key(tree, nodeKey);
+            // Case 2: Handle a deletion of the root node, with only a single child.
+            // The root node is always black, so removing it subtracts -1 black from depth.
+            // We make it's successsor black, and even out the number.
+            if (is_root_node(tree, nodeKey)) {
+                let successorNode = node_with_key_mut(tree, successorKey);
+                successorNode.parentNodeKeyIsSet = false;
+                successorNode.isRed = false;
+                tree.rootNodeKey = successorNode.key;
+                drop_node(tree, nodeKey);
+            } else {
+                // Case 3: We have one successor, and we're not the rood node. If either
+                // the deleted node or the replacement node is red, then we color the
+                // successor as black (red + black = black i.e. still 1 black). If both
+                // are black, then we start fixing a double black at the successor.
+                swap_parents(tree, nodeKey, successorKey);
+                if (is_red(tree, nodeKey) || is_red(tree, successorKey)) {
+                    let successorNode = node_with_key_mut(tree, successorKey);
+                    successorNode.isRed = false;
+                } else {
+                    fix_double_black(tree, successorKey);
+                };
+                drop_node(tree, nodeKey);
+            }
+        } else  {
+            // Case 4: We have two children. What we want to do is find a succesor which
+            // by definintion will have at most one child, then swap it out with the current node.
+            // After the swap, the deletion should be handled by one of the 1 - 3 cases.
+            // TODO: Make it happen!
+            let (_, successorKey) = successor_key(tree, nodeKey);
+
+            if (is_root_node(tree, nodeKey)) {
+
+            };
+
+            if (has_left_child(tree, nodeKey)) {
+                let leftChildNodeKey = left_child_key(tree, nodeKey);
+                let successorNode = node_with_key_mut(tree, successorKey);
+                successorNode.leftChildNodeKey = leftChildNodeKey;
+                successorNode.leftChildNodeKeyIsSet = true;
+
+            }
         }
     }
 
+    fun fix_double_black<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
+        if (is_root_node(tree, nodeKey)) {
+            return
+        };
+        let parentNodeKey = parent_node_key(tree, nodeKey);
+        if (has_sibiling(tree, nodeKey)) {
+            let sibilingNodeKey = sibiling_node_key(tree, nodeKey);
+            if (is_red(tree, sibilingNodeKey)) {
+                mark_red(tree, parentNodeKey);
+                mark_black(tree, sibilingNodeKey);
+                if (is_left_child(tree, sibilingNodeKey, parentNodeKey)) {
+                    rotate_right(tree, parentNodeKey, sibilingNodeKey);
+                } else {
+                    rotate_left(tree, parentNodeKey, sibilingNodeKey);
+                };
+                fix_double_black(tree, nodeKey);
+            } else {
+                if (has_red_child(tree, sibilingNodeKey)) {
+                    if (has_left_child(tree, sibilingNodeKey) && is_left_child_red(tree, sibilingNodeKey)) {
+                        if (is_left_child(tree, sibilingNodeKey, parentNodeKey)) {
+                            // left left case
+                            let isSibilingRed = is_red(tree, sibilingNodeKey);
+                            let isParentRed = is_red(tree, parentNodeKey);
+                            let sibilingLeftChildNodeKey = left_child_key(tree, sibilingNodeKey);
+                            mark_color(tree, sibilingLeftChildNodeKey, isSibilingRed);
+                            mark_color(tree, sibilingNodeKey, isParentRed);
+                            rotate_right(tree, parentNodeKey, sibilingNodeKey);
+                        } else {
+                            // right left case
+                            let isParentRed = is_red(tree, parentNodeKey);
+                            let sibilingLeftChildNodeKey = left_child_key(tree, sibilingNodeKey);
+                            mark_color(tree, sibilingLeftChildNodeKey, isParentRed);
+                            rotate_right(tree, sibilingNodeKey, sibilingLeftChildNodeKey);
+                            rotate_left(tree, parentNodeKey, sibilingNodeKey);
+                        }
+                    } else {
+                        if (is_left_child(tree, sibilingNodeKey, parentNodeKey)) {
+                            // left right case
+                            let isParentRed = is_red(tree, parentNodeKey);
+                            let sibilingRightChildNodeKey = right_child_key(tree, sibilingNodeKey);
+                            mark_color(tree, sibilingRightChildNodeKey, isParentRed);
+                            rotate_left(tree, sibilingNodeKey, sibilingRightChildNodeKey);
+                            rotate_left(tree, parentNodeKey, sibilingNodeKey);
+                        } else {
+                            // right right case
+                            let isParentRed = is_red(tree, parentNodeKey);
+                            let isSibilingRed = is_red(tree, sibilingNodeKey);
+                            let sibilingRightChildKey = right_child_key(tree, sibilingNodeKey);
+                            mark_color(tree, sibilingRightChildKey, isSibilingRed);
+                            mark_color(tree, sibilingNodeKey, isParentRed);
+                            rotate_left(tree, parentNodeKey, sibilingNodeKey);
+                        }
+                    }
+                } else { // Two black children!
+                    mark_red(tree, sibilingNodeKey);
+                    if (is_black(tree, parentNodeKey)) {
+                        fix_double_black(tree, parentNodeKey);
+                    } else {
+                        mark_black(tree, parentNodeKey);
+                    }
+                }
+            }
+        } else {
+            // The current double black node doesn't have a sibiling, so we can't fix the problem here. Let's give it
+            // to our parents, like we always do. Remember, we have checked that we're not the root node, so the parent
+            // node must exist!
+            let parentNodeKey = parent_node_key(tree, nodeKey);
+            fix_double_black(tree, parentNodeKey);
+        }
+    }
+
+    fun drop_node<V: store + drop>(tree: &mut Tree<V>, key: u128) {
+        table::remove(&mut tree.nodes, key);
+        tree.length = tree.length - 1
+        // TODO: need to unpoint the parent
+    }
+
     #[test(signer = @0x345)]
-    fun test_transplant_root(signer: signer) {
+    fun test_delete_leaf_nodes(signer: signer) {
+        let tree = new<u128>();
+        insert(&mut tree, 10, 0);
+        insert(&mut tree, 5, 0);
+        insert(&mut tree, 15, 0);
+        assert_inorder_tree(&tree, b"5(R) 10 _ _: [0], 10(B) root 5 15: [0], 15(R) 10 _ _: [0]");
+        delete_node(&mut tree, 5);
+        assert_inorder_tree(&tree, b"10(B) root _ 15: [0], 15(R) 10 _ _: [0]");
+        delete_node(&mut tree, 15);
+        assert_inorder_tree(&tree, b"10(B) root _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_nodes_with_single_children(signer: signer) {
+        let tree = new<u128>();
+        insert(&mut tree, 10, 0);
+        insert(&mut tree, 5, 0);
+        insert(&mut tree, 15, 0);
+        insert(&mut tree, 3, 0);
+        insert(&mut tree, 18, 0);
+        assert_inorder_tree(&tree, b"3(R) 5 _ _: [0], 5(B) 10 3 _: [0], 10(B) root 5 15: [0], 15(B) 10 _ 18: [0], 18(R) 15 _ _: [0]");
+        delete_node(&mut tree, 5);
+        assert_inorder_tree(&tree, b"3(B) 10 _ _: [0], 10(B) root 3 15: [0], 15(B) 10 _ 18: [0], 18(R) 15 _ _: [0]");
+        move_to(&signer, tree)
+    }
+    #[test(signer = @0x345)]
+    fun test_swap_parents_with_root(signer: signer) {
         let tree = new<u128>();
         insert(&mut tree, 8, 0);
         insert(&mut tree, 6, 0);
         insert(&mut tree, 7, 0);
         assert_inorder_tree(&tree, b"6(R) 7 _ _: [0], 7(B) root 6 8: [0], 8(R) 7 _ _: [0]");
-        transplant(&mut tree, 7, 6);
+        swap_parents(&mut tree, 7, 6);
         assert!(is_root_node(&tree, 6), 0);
         move_to(&signer, tree)
     }
 
     #[test(signer = @0x345)]
-    fun test_transplant(signer: signer) {
+    fun test_swap_parents(signer: signer) {
         let tree = new<u128>();
         insert(&mut tree, 8, 0);
         insert(&mut tree, 6, 0);
@@ -448,8 +658,8 @@ module ferum_std::red_black_tree {
         insert(&mut tree, 9, 0);
         insert(&mut tree, 5, 0);
         assert_inorder_tree(&tree, b"5(R) 6 _ _: [0], 6(B) 7 5 _: [0], 7(B) root 6 8: [0], 8(B) 7 _ 9: [0], 9(R) 8 _ _: [0]");
-        transplant(&mut tree, 8, 9);
-        transplant(&mut tree, 6, 5);
+        swap_parents(&mut tree, 8, 9);
+        swap_parents(&mut tree, 6, 5);
         let rootNode = root_node(&tree);
         assert!(rootNode.rightChildNodeKey == 9, 0);
         assert!(rootNode.leftChildNodeKey == 5, 0);
@@ -696,6 +906,8 @@ module ferum_std::red_black_tree {
         childNode.leftChildNodeKeyIsSet = true;
     }
 
+    // Neither the parent's nor the child's children nodes will be effected; this is only swapping the
+    // parents of both the parent and the child.
     fun swap_parents<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, childNodeKey: u128) {
         // 1. The child takes over the parent's spot; either as root (if parent is root), or as the grandprent's
         // left/right node, depending which direction the parent belonged.
