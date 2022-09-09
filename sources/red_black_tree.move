@@ -670,20 +670,44 @@ module ferum_std::red_black_tree {
         }
     }
 
-    struct NodeMetadata has copy, drop {
-        target: u128,
-        direction: u8,
+    fun drop_node<V: store + drop>(tree: &mut Tree<V>, key: u128) {
+        table::remove(&mut tree.nodes, key);
+        tree.length = tree.length - 1
+        // TODO: need to unpoint the parent
     }
 
-    // Let's start with some interesting conditions for our successor swap:
-    //
-    //   Requirement 1. Node (N) must have two children!
-    //   Requirement 2. Successor (S) must not have a left child (otherwise, left child should have been successor).
-    //   Requirement 3. Node (N) may optionally be the root (R) i.e. N = R.
-    //   Requirement 4. Successor (S) may optionally be node's (N) right child (N.rightChild) i.e. S = N.rightChild.
-    //   Requirement 5. Successor (S) may optionally have a right child (S.rightChild).
-    //   Requirement 6. After the swap, the coloring of the tree must not change i.e. swap(N.color, S.color)!
-    //
+    #[test(signer = @0x345)]
+    fun test_delete_leaf_nodes(signer: signer) {
+        let tree = new<u128>();
+        insert(&mut tree, 10, 0);
+        insert(&mut tree, 5, 0);
+        insert(&mut tree, 15, 0);
+        assert_inorder_tree(&tree, b"5(R) 10 _ _: [0], 10(B) root 5 15: [0], 15(R) 10 _ _: [0]");
+        delete_node(&mut tree, 5);
+        assert_inorder_tree(&tree, b"10(B) root _ 15: [0], 15(R) 10 _ _: [0]");
+        delete_node(&mut tree, 15);
+        assert_inorder_tree(&tree, b"10(B) root _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_nodes_with_single_children(signer: signer) {
+        let tree = new<u128>();
+        insert(&mut tree, 10, 0);
+        insert(&mut tree, 5, 0);
+        insert(&mut tree, 15, 0);
+        insert(&mut tree, 3, 0);
+        insert(&mut tree, 18, 0);
+        assert_inorder_tree(&tree, b"3(R) 5 _ _: [0], 5(B) 10 3 _: [0], 10(B) root 5 15: [0], 15(B) 10 _ 18: [0], 18(R) 15 _ _: [0]");
+        delete_node(&mut tree, 5);
+        assert_inorder_tree(&tree, b"3(B) 10 _ _: [0], 10(B) root 3 15: [0], 15(B) 10 _ 18: [0], 18(R) 15 _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    ///
+    /// SUCCESSOR SWAPPING
+    ///
+
     const OUTGOING_SWAP_EDGE_DIRECTION_LEFT_CHILD: u8 = 1;
     const OUTGOING_SWAP_EDGE_DIRECTION_RIGHT_CHILD: u8  = 2;
     const OUTGOING_SWAP_EDGE_DIRECTION_PARENT_LEFT: u8  = 3;
@@ -735,6 +759,15 @@ module ferum_std::red_black_tree {
         }
     }
 
+    // Let's start with some interesting conditions for our successor swap:
+    //
+    //  Requirement 1. Node (N) must have two children!
+    //  Requirement 2. Successor (S) must not have a left child (otherwise, left child should have been successor).
+    //  Requirement 3. Node (N) may optionally be the root (R) i.e. N = R.
+    //  Requirement 4. Successor (S) may optionally be node's (N) right child (N.rightChild) i.e. S = N.rightChild.
+    //  Requirement 5. Successor (S) may optionally have a right child (S.rightChild).
+    //  Requirement 6. After the swap, the coloring of the tree must not change i.e. swap(N.color, S.color)!
+    //
     fun swap_with_successor<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
         let (hasSuccesor, successorKey) = successor_key(tree, nodeKey);
         assert!(has_left_child(tree, nodeKey) && has_right_child(tree, nodeKey), INVALID_SUCCESSOR_OPERATION);
@@ -855,39 +888,6 @@ module ferum_std::red_black_tree {
         move_to(&signer, tree)
     }
 
-    fun drop_node<V: store + drop>(tree: &mut Tree<V>, key: u128) {
-        table::remove(&mut tree.nodes, key);
-        tree.length = tree.length - 1
-        // TODO: need to unpoint the parent
-    }
-
-    #[test(signer = @0x345)]
-    fun test_delete_leaf_nodes(signer: signer) {
-        let tree = new<u128>();
-        insert(&mut tree, 10, 0);
-        insert(&mut tree, 5, 0);
-        insert(&mut tree, 15, 0);
-        assert_inorder_tree(&tree, b"5(R) 10 _ _: [0], 10(B) root 5 15: [0], 15(R) 10 _ _: [0]");
-        delete_node(&mut tree, 5);
-        assert_inorder_tree(&tree, b"10(B) root _ 15: [0], 15(R) 10 _ _: [0]");
-        delete_node(&mut tree, 15);
-        assert_inorder_tree(&tree, b"10(B) root _ _: [0]");
-        move_to(&signer, tree)
-    }
-
-    #[test(signer = @0x345)]
-    fun test_delete_nodes_with_single_children(signer: signer) {
-        let tree = new<u128>();
-        insert(&mut tree, 10, 0);
-        insert(&mut tree, 5, 0);
-        insert(&mut tree, 15, 0);
-        insert(&mut tree, 3, 0);
-        insert(&mut tree, 18, 0);
-        assert_inorder_tree(&tree, b"3(R) 5 _ _: [0], 5(B) 10 3 _: [0], 10(B) root 5 15: [0], 15(B) 10 _ 18: [0], 18(R) 15 _ _: [0]");
-        delete_node(&mut tree, 5);
-        assert_inorder_tree(&tree, b"3(B) 10 _ _: [0], 10(B) root 3 15: [0], 15(B) 10 _ 18: [0], 18(R) 15 _ _: [0]");
-        move_to(&signer, tree)
-    }
     #[test(signer = @0x345)]
     fun test_swap_parents_with_root(signer: signer) {
         let tree = new<u128>();
