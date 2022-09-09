@@ -8,4 +8,4 @@ license = "Apache-2.0"
 AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "devnet" }
 
 [addresses]
-ferum_std="0xcf78eeed73fdfd11afca8a5e19ac52c8444fce37bcb04c27d52867ec7caceb35"
+ferum_std="0x33a6417b3846f094782adb6de9c0f6256c70502bf85e483d53140be0ff87a6fd"
