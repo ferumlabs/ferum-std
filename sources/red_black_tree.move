@@ -13,7 +13,8 @@ module ferum_std::red_black_tree {
     const NODE_NOT_FOUND: u64 = 2;
     const INVALID_ROTATION_NODES: u64 = 3;
     const INVALID_KEY_ACCESS: u64 = 4;
-    const INVALID_SUCCESSOR_OPERATION: u64 = 4;
+    const INVALID_SUCCESSOR_OPERATION: u64 = 5;
+    const INVALID_OUTGOING_SWAP_EDGE_DIRECTION: u64 = 6;
 
     ///
     /// STRUCTS
@@ -190,13 +191,9 @@ module ferum_std::red_black_tree {
         assert!(table::contains(&tree.nodes, parentKey), NODE_NOT_FOUND);
         assert!(table::contains(&tree.nodes, childKey), NODE_NOT_FOUND);
         assert!(!has_left_child(tree, parentKey), INVALID_KEY_ACCESS);
-
-        // Set parent's left child.
         let parentNode = node_with_key_mut(tree, parentKey);
         parentNode.leftChildNodeKey = childKey;
         parentNode.leftChildNodeKeyIsSet = true;
-
-        // Set child's parent.
         let childNode = node_with_key_mut(tree, childKey);
         childNode.parentNodeKey = parentKey;
         childNode.parentNodeKeyIsSet = true;
@@ -212,25 +209,12 @@ module ferum_std::red_black_tree {
         };
     }
 
-    fun set_parent<V: store + drop>(tree: &mut Tree<V>, childKey: u128, parentKey: u128) {
-        assert!(table::contains(&tree.nodes, childKey), NODE_NOT_FOUND);
-        assert!(table::contains(&tree.nodes, parentKey), NODE_NOT_FOUND);
-        let childNode = node_with_key_mut(tree, childKey);
-        childNode.parentNodeKey = parentKey;
-        childNode.parentNodeKeyIsSet = true;
-    }
-
     fun set_right_child<V: store + drop>(tree: &mut Tree<V>, parentKey: u128, childKey: u128) {
         assert!(table::contains(&tree.nodes, childKey), NODE_NOT_FOUND);
         assert!(table::contains(&tree.nodes, parentKey), NODE_NOT_FOUND);
-        assert!(!has_right_child(tree, parentKey), INVALID_KEY_ACCESS);
-
-        // Set parent's right child.
         let parentNode = node_with_key_mut(tree, parentKey);
         parentNode.rightChildNodeKey = childKey;
         parentNode.rightChildNodeKeyIsSet = true;
-
-        // Set child's parent.
         let childNode = node_with_key_mut(tree, childKey);
         childNode.parentNodeKey = parentKey;
         childNode.parentNodeKeyIsSet = true;
@@ -253,6 +237,26 @@ module ferum_std::red_black_tree {
         node.parentNodeKeyIsSet
     }
 
+    fun set_parent<V: store + drop>(tree: &mut Tree<V>, childKey: u128, parentKey: u128) {
+        assert!(table::contains(&tree.nodes, childKey), NODE_NOT_FOUND);
+        assert!(table::contains(&tree.nodes, parentKey), NODE_NOT_FOUND);
+        let childNode = node_with_key_mut(tree, childKey);
+        childNode.parentNodeKey = parentKey;
+        childNode.parentNodeKeyIsSet = true;
+    }
+
+    fun unset_parent<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
+        assert!(!is_empty(tree), TREE_IS_EMPTY);
+        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
+        assert!(has_parent(tree, nodeKey), INVALID_KEY_ACCESS);
+        let parentNodeKey = parent_node_key(tree, nodeKey);
+        if (is_left_child(tree, nodeKey, parentNodeKey)) {
+            unset_left_child(tree, parentNodeKey);
+        } else {
+            unset_right_child(tree, parentNodeKey);
+        };
+    }
+
     fun parent_node_key<V: store + drop>(tree: &Tree<V>, nodeKey: u128): u128 {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
         assert!(has_parent(tree, nodeKey), INVALID_KEY_ACCESS);
@@ -264,6 +268,18 @@ module ferum_std::red_black_tree {
         assert!(has_parent(tree, nodeKey), INVALID_KEY_ACCESS);
         let parentKey = parent_node_key(tree, nodeKey);
         node_with_key_mut(tree, parentKey)
+    }
+
+    fun unset_all<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
+        if (has_parent(tree, nodeKey)) {
+            unset_parent(tree, nodeKey);
+        };
+        if (has_right_child(tree, nodeKey)) {
+            unset_right_child(tree, nodeKey);
+        };
+        if (has_left_child(tree, nodeKey)) {
+            unset_left_child(tree, nodeKey);
+        }
     }
 
     fun has_grandparent<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
@@ -654,6 +670,11 @@ module ferum_std::red_black_tree {
         }
     }
 
+    struct NodeMetadata has copy, drop {
+        target: u128,
+        direction: u8,
+    }
+
     // Let's start with some interesting conditions for our successor swap:
     //
     //   Requirement 1. Node (N) must have two children!
@@ -663,110 +684,70 @@ module ferum_std::red_black_tree {
     //   Requirement 5. Successor (S) may optionally have a right child (S.rightChild).
     //   Requirement 6. After the swap, the coloring of the tree must not change i.e. swap(N.color, S.color)!
     //
-    // The easiest way to think about the steps is setting all the flags separately, one by one. So denote node as N,
-    // and it's success as S. We have n.parent, n.leftChild, n.rightChild, then optionally s.rightChild and s.parent.
-    // So there are 5 different pointers we need to update; plus don't forget tree.root and N.color and S.color. If
-    // we update all these flags, then we're good to go! It's important to be wary of not read after write! This would
-    // give us stale data. It's also important to avoid getting into cycles i.e. S.rightChild = S!
-    //
-    // If we think about testing, there are a about 2^ 6 ~ 64 exchaustive cases we need to test!
-    // N = root X N.rightChild = S X S.parent.leftChild = S X s.rightChild X S.color X N.color
-    //
-    // We can mimimize the set by testing the pivotal code cases, which should take 6 cases!
-    //
-    // Test Set 1) Position of N: root vs. not (2 case).
-    // Test Set 2) Position of S: root's right child, another parent's left child or right child (3x cases).
-    // Test Set 3) Existence of S.rightChild (1 case)
-    //
-    // The color should be tested in both, and as long as there is a case where S.color != N.color, coverage would pass!
-    // This leads us towards a total number of cases of 5, and that's manageable!
-    //
+    const OUTGOING_SWAP_EDGE_DIRECTION_LEFT_CHILD: u8 = 1;
+    const OUTGOING_SWAP_EDGE_DIRECTION_RIGHT_CHILD: u8  = 2;
+    const OUTGOING_SWAP_EDGE_DIRECTION_PARENT_LEFT: u8  = 3;
+    const OUTGOING_SWAP_EDGE_DIRECTION_PARENT_RIGHT: u8  = 4;
+
+    struct OutgoingSwapEdge has copy, drop {
+        target: u128,
+        direction: u8,
+    }
+
+    fun outgoing_edges<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128): vector<OutgoingSwapEdge> {
+        let outgoingEdges = &mut vector::empty<OutgoingSwapEdge>();
+        if (has_right_child(tree, nodeKey)) {
+            let rightChildNodeKey = right_child_key(tree, nodeKey);
+            vector::push_back(outgoingEdges, OutgoingSwapEdge { target: rightChildNodeKey, direction: OUTGOING_SWAP_EDGE_DIRECTION_RIGHT_CHILD });
+        };
+        if (has_left_child(tree, nodeKey)) {
+            let leftChildNodeKey = left_child_key(tree, nodeKey);
+            vector::push_back(outgoingEdges, OutgoingSwapEdge { target: leftChildNodeKey, direction: OUTGOING_SWAP_EDGE_DIRECTION_LEFT_CHILD });
+        };
+        if (has_parent(tree, nodeKey)) {
+            let parentNodeKey = parent_node_key(tree, nodeKey);
+            if (is_left_child(tree, nodeKey, parentNodeKey)) {
+                vector::push_back(outgoingEdges, OutgoingSwapEdge { target: parentNodeKey, direction: OUTGOING_SWAP_EDGE_DIRECTION_PARENT_LEFT });
+            } else {
+                vector::push_back(outgoingEdges, OutgoingSwapEdge { target: parentNodeKey, direction: OUTGOING_SWAP_EDGE_DIRECTION_PARENT_RIGHT });
+            };
+        };
+        *outgoingEdges
+    }
+
+    fun apply_outgoing_edges<V: store + drop>(tree: &mut Tree<V>, outgoingEdges: &vector<OutgoingSwapEdge>, nodeKey: u128, cycleBreakingNodeKey: u128) {
+        let i = 0;
+        while (i < vector::length(outgoingEdges)) {
+            let edge = vector::borrow(outgoingEdges, i);
+            let target =  if (edge.target == nodeKey) cycleBreakingNodeKey else edge.target;
+            if (edge.direction == OUTGOING_SWAP_EDGE_DIRECTION_LEFT_CHILD) {
+                set_left_child(tree, nodeKey, target);
+            } else if (edge.direction == OUTGOING_SWAP_EDGE_DIRECTION_RIGHT_CHILD) {
+                set_right_child(tree, nodeKey, target);
+            } else if (edge.direction == OUTGOING_SWAP_EDGE_DIRECTION_PARENT_LEFT) {
+                set_left_child(tree, target, nodeKey);
+            } else if (edge.direction == OUTGOING_SWAP_EDGE_DIRECTION_PARENT_RIGHT) {
+                set_right_child(tree, target, nodeKey);
+            } else {
+                assert!(false, INVALID_OUTGOING_SWAP_EDGE_DIRECTION);
+            };
+            i = i + 1;
+        }
+    }
+
     fun swap_with_successor<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
         let (hasSuccesor, successorKey) = successor_key(tree, nodeKey);
         assert!(has_left_child(tree, nodeKey) && has_right_child(tree, nodeKey), INVALID_SUCCESSOR_OPERATION);
         assert!(hasSuccesor, INVALID_SUCCESSOR_OPERATION);
-
-        std::debug::print(&0);
-
-        // Step 0. First we can gather all the information before it gets rewritten.
-        let successorParentKey = parent_node_key(tree, successorKey);
-        let isSuccessorLeftChild = is_left_child(tree, successorKey, successorParentKey);
-        let isNodeRoot = is_root_node(tree, nodeKey);
-        let nodeLeftChildKey = left_child_key(tree, nodeKey);
-        let nodeRightChildKey = right_child_key(tree, nodeKey);
-
-        std::debug::print(&1);
-        // Step 1 (S.leftChild): We know N must have a left child and the sucessor cannot; so S.leftChild = N.leftChild.
-        unset_left_child(tree, nodeKey);
-        set_left_child(tree, successorKey, nodeLeftChildKey);
-
-        std::debug::print(&2);
-        // Step 2 (N.rightChild): Optionally, if SR exists, set N.rightChild = S.rightChild
-        // We have saved N.rightChild above, so we're not worried about overwriting it!
-        unset_right_child(tree, nodeKey);
-        if (has_right_child(tree, successorKey)) {
-            let successorRightChildNodeKey = right_child_key(tree, successorKey);
-            set_right_child(tree, nodeKey, successorRightChildNodeKey);
+        let nodeOutgoingEdges = outgoing_edges(tree, nodeKey);
+        let successorOutgoingEdges = outgoing_edges(tree, successorKey);
+        unset_all(tree, nodeKey);
+        unset_all(tree, successorKey);
+        apply_outgoing_edges(tree, &successorOutgoingEdges, nodeKey, successorKey);
+        apply_outgoing_edges(tree, &nodeOutgoingEdges, successorKey, nodeKey);
+        if (tree.rootNodeKey == nodeKey) {
+            tree.rootNodeKey = successorKey;
         };
-
-        std::debug::print(&3);
-        // Step 3 (S.parent or root): Set S's parent, handling the case when N is optionally root.
-        // We're ok overriding the S's parent since we have made a copy of it including which side S is on.
-        if (isNodeRoot) {
-            set_root_node(tree, successorKey);
-        } else {
-            std::debug::print(&31);
-            // Before we assign the succesor a new parent, disconnect it from it's current parent.
-            if (isSuccessorLeftChild) {
-                unset_left_child(tree, successorParentKey);
-            } else {
-                unset_right_child(tree, successorParentKey);
-            };
-            let nodeParentKey = parent_node_key(tree, nodeKey);
-            if (is_left_child(tree, nodeKey, nodeParentKey)) {
-                unset_left_child(tree, nodeParentKey);
-                set_left_child(tree, nodeParentKey, successorKey);
-            } else {
-                std::debug::print(&32);
-                unset_right_child(tree, nodeParentKey);
-                set_right_child(tree, nodeParentKey, successorKey);
-            }
-        };
-
-        std::debug::print(&4);
-
-        // Step 4 (S.rightChild): Now set the S's new right child; there are two cases.
-        // 4.1 If N was S's parent, then we want to do S.rightChild = N
-        // 4.2 Otherwise, we set S.rightChild = N.rightChild; this prevents a cycle S.rightChild = S.
-        unset_right_child(tree, successorKey);
-        if (successorParentKey == nodeKey) {
-            set_right_child(tree, successorKey, nodeKey);
-        } else {
-            set_right_child(tree, successorKey, nodeRightChildKey);
-        };
-
-        std::debug::print(&5);
-        if (has_parent(tree, successorKey)) {
-            std::debug::print(&33);
-        };
-
-        // Step 5 (N.parent): We need to set N.parent to be S's old paren. There are two cases.
-        // 5.1: If N was S's parent, make N.parent = S
-        // 5.2: If S was it's parents left child, then set N to be the left child of S's parent.
-        // 5.3: If S was it's parents right child, then set N to be the right child of S's parent.
-        if (successorParentKey == nodeKey) {
-            set_parent(tree, nodeKey, successorKey);
-        } else if (isSuccessorLeftChild) {
-            set_left_child(tree, successorParentKey, nodeKey);
-        } else {
-            set_right_child(tree, successorParentKey, nodeKey);
-        };
-        if (has_parent(tree, successorKey)) {
-            std::debug::print(&33);
-        };
-
-        std::debug::print(&6);
-        // Step 6 (N.color <-> S.color): Presever the tree color scheme!
         let isNodeRed = is_red(tree, nodeKey);
         let isSuccessorRed = is_red(tree, successorKey);
         mark_color(tree, nodeKey, isSuccessorRed);
@@ -776,9 +757,9 @@ module ferum_std::red_black_tree {
     #[test(signer = @0x345)]
     fun test_swap_with_successor_test_root_immediate(signer: signer) {
         // Node is root and successor is right child as a leaf node.
-        //    10           15
-        //   /  \    ->   /  \
-        //  5   15       5   10
+        //     10B            15B
+        //    /   \    ->    /   \
+        //  5R    15R      5R    10R
         let tree = new<u128>();
         insert(&mut tree, 10, 0);
         insert(&mut tree, 5, 0);
@@ -792,11 +773,11 @@ module ferum_std::red_black_tree {
     #[test(signer = @0x345)]
     fun test_swap_with_successor_test_root_not_immediate(signer: signer) {
         // Node is root and successor is not its right child.
-        //    (10)               14
-        //   /   \             /  \
-        //  5     15   ->    5     15
+        //    (10B)              14B
+        //   /    \             /  \
+        //  5B    15B   ->    5B   15B
         //       /                /
-        //     14              (10)
+        //     14R             (10R)
         let tree = new<u128>();
         insert(&mut tree, 10, 0);
         insert(&mut tree, 5, 0);
@@ -805,6 +786,29 @@ module ferum_std::red_black_tree {
         assert_inorder_tree(&tree, b"5(B) 10 _ _: [0], 10(B) root 5 15: [0], 14(R) 15 _ _: [0], 15(B) 10 14 _: [0]");
         swap_with_successor(&mut tree, 10);
         assert_inorder_tree(&tree, b"5(B) 14 _ _: [0], 14(B) root 5 15: [0], 10(R) 15 _ _: [0], 15(B) 14 10 _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_swap_with_successor_test_root_not_immediate_with_right_child(signer: signer) {
+        // Node is not root and successor is right leaf child.
+        //   (10B)              13B
+        //   /   \             /  \
+        //  5B   15R    ->    5B  15R
+        //      /  \             /  \
+        //    13B  25B       (10B)  25B
+        //      \               \
+        //      14R              14R
+        let tree = new<u128>();
+        insert(&mut tree, 10, 0);
+        insert(&mut tree, 5, 0);
+        insert(&mut tree, 15, 0);
+        insert(&mut tree, 25, 0);
+        insert(&mut tree, 13, 0);
+        insert(&mut tree, 14, 0);
+        assert_inorder_tree(&tree, b"5(B) 10 _ _: [0], 10(B) root 5 15: [0], 13(B) 15 _ 14: [0], 14(R) 13 _ _: [0], 15(R) 10 13 25: [0], 25(B) 15 _ _: [0]");
+        swap_with_successor(&mut tree, 10);
+        assert_inorder_tree(&tree, b"5(B) 13 _ _: [0], 13(B) root 5 15: [0], 10(B) 15 _ 14: [0], 14(R) 10 _ _: [0], 15(R) 13 10 25: [0], 25(B) 15 _ _: [0]");
         move_to(&signer, tree)
     }
 
@@ -847,8 +851,7 @@ module ferum_std::red_black_tree {
         insert(&mut tree, 16, 0);
         assert_inorder_tree(&tree, b"5(B) 10 _ _: [0], 10(B) root 5 15: [0], 14(B) 15 _ _: [0], 15(R) 10 14 17: [0], 16(R) 17 _ _: [0], 17(B) 15 16 _: [0]");
         swap_with_successor(&mut tree, 15);
-        print_tree(&tree);
-        assert_inorder_tree(&tree, b"5(B) 10 _ _: [0], 10(B) root 5 16: [0], 14(B) 16 _ _: [0], 15(R) 17 _ _: [0], 16(R) 10 14 17: [0], 17(B) 16 15 _: [0]");
+        assert_inorder_tree(&tree, b"5(B) 10 _ _: [0], 10(B) root 5 16: [0], 14(B) 16 _ _: [0], 16(R) 10 14 17: [0], 15(R) 17 _ _: [0], 17(B) 16 15 _: [0]");
         move_to(&signer, tree)
     }
 
