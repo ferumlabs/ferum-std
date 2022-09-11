@@ -14,7 +14,8 @@ module ferum_std::red_black_tree {
     const INVALID_ROTATION_NODES: u64 = 3;
     const INVALID_KEY_ACCESS: u64 = 4;
     const INVALID_SUCCESSOR_OPERATION: u64 = 5;
-    const INVALID_OUTGOING_SWAP_EDGE_DIRECTION: u64 = 6;
+    const INVALID_DELETION_OPERATION: u64 = 6;
+    const INVALID_OUTGOING_SWAP_EDGE_DIRECTION: u64 = 7;
 
     ///
     /// STRUCTS
@@ -389,15 +390,15 @@ module ferum_std::red_black_tree {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
         assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
         assert!(has_left_child(tree, nodeKey), INVALID_KEY_ACCESS);
-        let leftChildKey = right_child_key(tree, nodeKey);
+        let leftChildKey = left_child_key(tree, nodeKey);
         is_red(tree, leftChildKey)
     }
 
     fun has_red_child<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
         assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        has_right_child(tree, nodeKey) && is_right_child_red(tree, nodeKey) ||
-            has_left_child(tree, nodeKey) && is_left_child_red(tree, nodeKey)
+        has_left_child(tree, nodeKey) && is_left_child_red(tree, nodeKey) ||
+            has_right_child(tree, nodeKey) && is_right_child_red(tree, nodeKey)
     }
 
     ///
@@ -552,22 +553,19 @@ module ferum_std::red_black_tree {
     /// DELETIONS
     ///
 
+    // The code in GeeksForGeeks has many bugs, use the discussion board to see them.
+    // https://www.geeksforgeeks.org/red-black-tree-set-3-delete-2/
     public fun delete_node<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
-        let _log = nodeKey == 5;
-
-        if (is_leaf_node(tree, nodeKey)) {
-            // Case 1: Handle leaf node case. If it's the root, just delete the node. Otherwise, if
-            // the deleted node is black, there must be an imbalance; fix the double black!
-            if (is_root_node(tree, nodeKey)) {
-                drop_node(tree, nodeKey);
-            } else if (is_black(tree, nodeKey)) {
-                // The deletion of a black leaf causes an imbalance!
-                fix_double_black(tree, nodeKey);
-            };
-            drop_node(tree, nodeKey);
-        } else if (has_left_child(tree, nodeKey) || has_right_child(tree, nodeKey)) {
-            let (_, successorKey) = successor_key(tree, nodeKey);
-            // Case 2: Handle a deletion of the root node, with only a single child.
+        if (has_left_child(tree, nodeKey) && has_right_child(tree, nodeKey)) { // Has 2 children!
+            // Scenario 1: We have two children. What we want to do is find a succesor which
+            // by definintion will have at most one child, then swap it out with the current node.
+            // After the swap, the deletion should be handled by one of the scenarios below.
+            swap_with_successor(tree, nodeKey);
+            delete_node(tree, nodeKey);
+        } else if (has_left_child(tree, nodeKey) || has_right_child(tree, nodeKey)) { // Has at leat 1 child!
+            let (hasSuccssor, successorKey) = successor_key(tree, nodeKey);
+            assert!(hasSuccssor, INVALID_SUCCESSOR_OPERATION);
+            // Scenario 2: Handle a deletion of the root node, with only a single child.
             // The root node is always black, so removing it subtracts -1 black from depth.
             // We make it's successsor black, and even out the number.
             if (is_root_node(tree, nodeKey)) {
@@ -576,8 +574,8 @@ module ferum_std::red_black_tree {
                 successorNode.isRed = false;
                 tree.rootNodeKey = successorNode.key;
                 drop_node(tree, nodeKey);
-            } else {
-                // Case 3: We have one successor, and we're not the rood node. If either
+            } else { // is leaf node!
+                // Scenario 3: We have one successor, and we're not the rood node. If either
                 // the deleted node or the replacement node is red, then we color the
                 // successor as black (red + black = black i.e. still 1 black). If both
                 // are black, then we start fixing a double black at the successor.
@@ -590,13 +588,15 @@ module ferum_std::red_black_tree {
                 };
                 drop_node(tree, nodeKey);
             }
-        } else  {
-            // Case 4: We have two children. What we want to do is find a succesor which
-            // by definintion will have at most one child, then swap it out with the current node.
-            // After the swap, the deletion should be handled by one of the 1 - 3 cases.
-            swap_with_successor(tree, nodeKey);
-            delete_node(tree, nodeKey);
-        }
+        } else { // Leaf node!
+            // Scenario 4: Handle leaf node case. If it's the root, just delete the node. Otherwise, if
+            // the deleted node is black, there must be an imbalance; fix the double black!
+            if (is_black(tree, nodeKey)) {
+                // The deletion of a black leaf causes an imbalance! Fix the double black!
+                fix_double_black(tree, nodeKey);
+            };
+            drop_node(tree, nodeKey);
+        };
     }
 
     fun fix_double_black<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
@@ -606,7 +606,10 @@ module ferum_std::red_black_tree {
         let parentNodeKey = parent_node_key(tree, nodeKey);
         if (has_sibiling(tree, nodeKey)) {
             let sibilingNodeKey = sibiling_node_key(tree, nodeKey);
-            if (is_red(tree, sibilingNodeKey)) {
+            // 3.2 (c): If sibling is red, perform a rotation to move old sibling up, recolor the old sibling and
+            // parent. The new sibling is always black (See the below diagram). This mainly converts the tree to black
+            // sibling case (by rotation) and leads to case (a) or (b). This case can be divided in two subcases.
+            if (is_red(tree, sibilingNodeKey)) { // Sibiling is red!
                 mark_red(tree, parentNodeKey);
                 mark_black(tree, sibilingNodeKey);
                 if (is_left_child(tree, sibilingNodeKey, parentNodeKey)) {
@@ -615,11 +618,15 @@ module ferum_std::red_black_tree {
                     rotate_left(tree, parentNodeKey, sibilingNodeKey);
                 };
                 fix_double_black(tree, nodeKey);
-            } else {
-                if (has_red_child(tree, sibilingNodeKey)) {
-                    if (has_left_child(tree, sibilingNodeKey) && is_left_child_red(tree, sibilingNodeKey)) {
-                        if (is_left_child(tree, sibilingNodeKey, parentNodeKey)) {
-                            // left left case
+            } else { // Sibiling is black!
+                // 3.2 (a): If sibling s is black and at least one of sibling's children is red, perform rotation(s).
+                // Let the red child of s be r. This case can be divided in four subcases depending upon positions of
+                // s and r.
+                if (has_red_child(tree, sibilingNodeKey)) { // At least one of sibiling's children is red!
+                    if (is_left_child(tree, sibilingNodeKey, parentNodeKey)) { // Sibiling is the left child!
+                        if (has_left_child(tree, sibilingNodeKey) && is_left_child_red(tree, sibilingNodeKey)) {
+                            // 3.2.a (i) Left Left Case (s is left child of its parent and r is left child of s or both
+                            // children of s are red).
                             let isSibilingRed = is_red(tree, sibilingNodeKey);
                             let isParentRed = is_red(tree, parentNodeKey);
                             let sibilingLeftChildNodeKey = left_child_key(tree, sibilingNodeKey);
@@ -627,31 +634,33 @@ module ferum_std::red_black_tree {
                             mark_color(tree, sibilingNodeKey, isParentRed);
                             rotate_right(tree, parentNodeKey, sibilingNodeKey);
                         } else {
-                            // right left case
-                            let isParentRed = is_red(tree, parentNodeKey);
-                            let sibilingLeftChildNodeKey = left_child_key(tree, sibilingNodeKey);
-                            mark_color(tree, sibilingLeftChildNodeKey, isParentRed);
-                            rotate_right(tree, sibilingNodeKey, sibilingLeftChildNodeKey);
-                            rotate_left(tree, parentNodeKey, sibilingNodeKey);
-                        }
-                    } else {
-                        if (is_left_child(tree, sibilingNodeKey, parentNodeKey)) {
-                            // left right case
+                            // 3.2.a (ii): Left Right Case (s is left child of its parent and r is right child).
                             let isParentRed = is_red(tree, parentNodeKey);
                             let sibilingRightChildNodeKey = right_child_key(tree, sibilingNodeKey);
                             mark_color(tree, sibilingRightChildNodeKey, isParentRed);
                             rotate_left(tree, sibilingNodeKey, sibilingRightChildNodeKey);
-                            rotate_left(tree, parentNodeKey, sibilingNodeKey);
-                        } else {
-                            // right right case
+                            rotate_right(tree, parentNodeKey, sibilingRightChildNodeKey);
+                        }
+                    } else { // sibiling is the right child!
+                        if (has_right_child(tree, sibilingNodeKey) && is_right_child_red(tree, sibilingNodeKey)) {
+                            // 3.2.a (iii) Right Right Case (s is right child of its parent and r is right child of s
+                            // or both children of s are red).
                             let isParentRed = is_red(tree, parentNodeKey);
                             let isSibilingRed = is_red(tree, sibilingNodeKey);
                             let sibilingRightChildKey = right_child_key(tree, sibilingNodeKey);
                             mark_color(tree, sibilingRightChildKey, isSibilingRed);
                             mark_color(tree, sibilingNodeKey, isParentRed);
                             rotate_left(tree, parentNodeKey, sibilingNodeKey);
+                        } else {
+                            // 3.2.a (iv): Right Left Case (s is right child of its parent and r is left child of s).
+                            let isParentRed = is_red(tree, parentNodeKey);
+                            let sibilingLeftChildNodeKey = left_child_key(tree, sibilingNodeKey);
+                            mark_color(tree, sibilingLeftChildNodeKey, isParentRed);
+                            rotate_right(tree, sibilingNodeKey, sibilingLeftChildNodeKey);
+                            rotate_left(tree, parentNodeKey, sibilingLeftChildNodeKey);
                         }
-                    }
+                    };
+                    mark_black(tree, parentNodeKey);
                 } else { // Two black children!
                     mark_red(tree, sibilingNodeKey);
                     if (is_black(tree, parentNodeKey)) {
@@ -671,17 +680,83 @@ module ferum_std::red_black_tree {
     }
 
     fun drop_node<V: store + drop>(tree: &mut Tree<V>, key: u128) {
+        assert!(!is_empty(tree), INVALID_DELETION_OPERATION);
+        if (has_parent(tree, key)) {
+            unset_parent(tree, key);
+        };
+
         table::remove(&mut tree.nodes, key);
         tree.length = tree.length - 1
-        // TODO: need to unpoint the parent
     }
 
     #[test(signer = @0x345)]
-    fun test_delete_leaf_nodes(signer: signer) {
-        let tree = new<u128>();
-        insert(&mut tree, 10, 0);
-        insert(&mut tree, 5, 0);
-        insert(&mut tree, 15, 0);
+    fun test_delete_root_leaf_node(signer: signer) {
+        // It's just a leaf root node.
+        let tree = test_tree(vector<u128>[10]);
+        assert_inorder_tree(&tree, b"10(B) root _ _: [0]");
+        assert!(length(&tree) == 1, 0);
+        delete_node(&mut tree, 10);
+        assert_inorder_tree(&tree, b"");
+        assert!(is_empty(&tree), 0);
+        assert!(length(&tree) == 0, 0);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_root_node_with_red_left_successor(signer: signer) {
+        // It's just a leaf root node.
+        let tree = test_tree(vector<u128>[10, 5]);
+        assert_inorder_tree(&tree, b"5(R) 10 _ _: [0], 10(B) root 5 _: [0]");
+        assert!(length(&tree) == 2, 0);
+        delete_node(&mut tree, 10);
+        assert_inorder_tree(&tree, b"5(B) root _ _: [0]");
+        assert!(length(&tree) == 1, 0);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_root_node_with_red_right_successor(signer: signer) {
+        // It's just a leaf root node.
+        let tree = test_tree(vector<u128>[10, 15]);
+        assert_inorder_tree(&tree, b"10(B) root _ 15: [0], 15(R) 10 _ _: [0]");
+        assert!(length(&tree) == 2, 0);
+        delete_node(&mut tree, 10);
+        assert_inorder_tree(&tree, b"15(B) root _ _: [0]");
+        assert!(length(&tree) == 1, 0);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_root_node_with_two_red_successors(signer: signer) {
+        // It's just a leaf root node.
+        let tree = test_tree(vector<u128>[10, 5, 15]);
+        assert_inorder_tree(&tree, b"5(R) 10 _ _: [0], 10(B) root 5 15: [0], 15(R) 10 _ _: [0]");
+        assert!(length(&tree) == 3, 0);
+        delete_node(&mut tree, 10);
+        assert_inorder_tree(&tree, b"5(R) 15 _ _: [0], 15(B) root 5 _: [0]");
+        assert!(length(&tree) == 2, 0);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_black_node_with_two_children(signer: signer) {
+        let tree = test_tree(vector<u128>[1, 2, 3, 4, 5, 6, 7]);
+        assert_inorder_tree(&tree, b"1(B) 2 _ _: [0], 2(B) root 1 4: [0], 3(B) 4 _ _: [0], 4(R) 2 3 6: [0], 5(R) 6 _ _: [0], 6(B) 4 5 7: [0], 7(R) 6 _ _: [0]");
+        delete_node(&mut tree, 6);
+        assert_inorder_tree(&tree, b"1(B) 2 _ _: [0], 2(B) root 1 4: [0], 3(B) 4 _ _: [0], 4(R) 2 3 7: [0], 5(R) 7 _ _: [0], 7(B) 4 5 _: [0]");
+        delete_node(&mut tree, 4);
+        assert_inorder_tree(&tree, b"1(B) 2 _ _: [0], 2(B) root 1 5: [0], 3(B) 5 _ _: [0], 5(R) 2 3 7: [0], 7(B) 5 _ _: [0]");
+        delete_node(&mut tree, 1);
+        assert_inorder_tree(&tree, b"2(B) 5 _ 3: [0], 3(R) 2 _ _: [0], 5(B) root 2 7: [0], 7(B) 5 _ _: [0]");
+        delete_node(&mut tree, 7);
+        assert_inorder_tree(&tree, b"2(B) 3 _ _: [0], 3(B) root 2 5: [0], 5(B) 3 _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_red_leaf_nodes(signer: signer) {
+        // Red Case 1: It's just a leaf node.
+        let tree = test_tree(vector<u128>[10, 5, 15]);
         assert_inorder_tree(&tree, b"5(R) 10 _ _: [0], 10(B) root 5 15: [0], 15(R) 10 _ _: [0]");
         delete_node(&mut tree, 5);
         assert_inorder_tree(&tree, b"10(B) root _ 15: [0], 15(R) 10 _ _: [0]");
@@ -691,16 +766,88 @@ module ferum_std::red_black_tree {
     }
 
     #[test(signer = @0x345)]
-    fun test_delete_nodes_with_single_children(signer: signer) {
-        let tree = new<u128>();
-        insert(&mut tree, 10, 0);
-        insert(&mut tree, 5, 0);
-        insert(&mut tree, 15, 0);
-        insert(&mut tree, 3, 0);
-        insert(&mut tree, 18, 0);
-        assert_inorder_tree(&tree, b"3(R) 5 _ _: [0], 5(B) 10 3 _: [0], 10(B) root 5 15: [0], 15(B) 10 _ 18: [0], 18(R) 15 _ _: [0]");
+    fun test_delete_black_node_with_red_left_child_sucessor(signer: signer) {
+        // Red Case 2: The successor is red and is the left child of the node getting deleted.
+        let tree = test_tree(vector<u128>[10, 5, 15, 3, 7, 1]);
+        assert_inorder_tree(&tree, b"1(R) 3 _ _: [0], 3(B) 5 1 _: [0], 5(R) 10 3 7: [0], 7(B) 5 _ _: [0], 10(B) root 5 15: [0], 15(B) 10 _ _: [0]");
+        delete_node(&mut tree, 3);
+        assert_inorder_tree(&tree, b"1(B) 5 _ _: [0], 5(R) 10 1 7: [0], 7(B) 5 _ _: [0], 10(B) root 5 15: [0], 15(B) 10 _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_black_node_with_red_right_child_sucessor(signer: signer) {
+        // Red Case 3: The successor is red and is the left child of the node getting deleted.
+        let tree = test_tree(vector<u128>[10, 5, 15, 7]);
+        assert_inorder_tree(&tree, b"5(B) 10 _ 7: [0], 7(R) 5 _ _: [0], 10(B) root 5 15: [0], 15(B) 10 _ _: [0]");
         delete_node(&mut tree, 5);
-        assert_inorder_tree(&tree, b"3(B) 10 _ _: [0], 10(B) root 3 15: [0], 15(B) 10 _ 18: [0], 18(R) 15 _ _: [0]");
+        assert_inorder_tree(&tree, b"7(B) 10 _ _: [0], 10(B) root 7 15: [0], 15(B) 10 _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_leaf_black_node_case_3_2_a_i(signer: signer) {
+        let tree = test_tree(vector<u128>[20, 15, 25, 10, 17]);
+        delete_node(&mut tree, 25);
+        assert_inorder_tree(&tree, b"10(B) 15 _ _: [0], 15(B) root 10 20: [0], 17(R) 20 _ _: [0], 20(B) 15 17 _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_leaf_black_node_case_3_2_a_ii(signer: signer) {
+        let tree = test_tree(vector<u128>[20, 15, 25, 17]);
+        delete_node(&mut tree, 25);
+        assert_inorder_tree(&tree, b"15(B) 17 _ _: [0], 17(B) root 15 20: [0], 20(B) 17 _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_leaf_black_node_case_3_2_a_iii(signer: signer) {
+        let tree = test_tree(vector<u128>[30, 20, 40, 35, 50]);
+        delete_node(&mut tree, 20);
+        assert_inorder_tree(&tree, b"30(B) 40 _ 35: [0], 35(R) 30 _ _: [0], 40(B) root 30 50: [0], 50(B) 40 _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_leaf_black_node_case_3_2_a_iv(signer: signer) {
+        let tree = test_tree(vector<u128>[30, 20, 40, 35]);
+        delete_node(&mut tree, 20);
+        assert_inorder_tree(&tree, b"30(B) 35 _ _: [0], 35(B) root 30 40: [0], 40(B) 35 _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_leaf_black_node_case_3_2_b_black_parent(signer: signer) {
+        let tree = test_tree(vector<u128>[20, 10, 25, 35]);
+        delete_node(&mut tree, 35);
+        delete_node(&mut tree, 10);
+        assert_inorder_tree(&tree, b"20(B) root _ 25: [0], 25(R) 20 _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_leaf_black_node_case_3_2_b_red_parent(signer: signer) {
+        let tree = test_tree(vector<u128>[20, 10, 25, 30, 23, 35]);
+        delete_node(&mut tree, 35);
+        delete_node(&mut tree, 30);
+        assert_inorder_tree(&tree, b"10(B) 20 _ _: [0], 20(B) root 10 25: [0], 23(R) 25 _ _: [0], 25(B) 20 23 _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_leaf_black_node_case_3_2_c_i(signer: signer) {
+        let tree = test_tree(vector<u128>[20, 10, 30, 1, 2, 3]);
+        delete_node(&mut tree, 30);
+        assert_inorder_tree(&tree, b"1(B) 2 _ _: [0], 2(B) root 1 10: [0], 3(B) 10 _ _: [0], 10(R) 2 3 20: [0], 20(B) 10 _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_leaf_black_node_case_3_2_c_ii(signer: signer) {
+        let tree = test_tree(vector<u128>[20, 10, 30, 45, 50, 55]);
+        delete_node(&mut tree, 10);
+        assert_inorder_tree(&tree, b"20(B) 45 _ 30: [0], 30(R) 20 _ _: [0], 45(B) root 20 50: [0], 50(B) 45 _ 55: [0], 55(R) 50 _ _: [0]");
         move_to(&signer, tree)
     }
 
@@ -927,7 +1074,6 @@ module ferum_std::red_black_tree {
     // Also note that in the tutorial's code, the diagram's and the code have the top level if statement flipped.
     // If you're using, good visualization here: https://www.cs.usfca.edu/~galles/visualization/RedBlack.html.
     fun fix_up_insertion<V: store + drop>(tree: &mut Tree<V>, currentNodeKey: u128) {
-        let log = currentNodeKey == 1;
         // 1. Continue while the parent of the current node is red! Keep in mind that root is always black, so
         // this condition only applies to 3rd layers and below.
         while (has_parent(tree, currentNodeKey) && is_parent_red(tree, currentNodeKey)) {
@@ -960,22 +1106,18 @@ module ferum_std::red_black_tree {
             } else {
                 // 3. The code below is the mirror version of the one above. For example, we check if the left uncle
                 // is black instead of the right uncle unlike we did above. Similarly, we still need to handle 3 cases!
-                if (log) std::debug::print(&1);
                 // 3. Case-I: If the left uncle is black, then mark both parents as black, and grandparent as red.
                 if (has_left_child(tree, grandparentNodeKey) && is_left_child_red(tree, grandparentNodeKey) ) {
                     mark_children_black(tree, grandparentNodeKey);
                     mark_red(tree, grandparentNodeKey);
                     currentNodeKey = grandparentNodeKey;
                 } else {
-                    if (log) std::debug::print(&2);
                     // 3. Case-II: Else if current node is the left child of the parent node, then right rotate the
                     // current node and parent node, then assign parent to be the new current node.
                     if (is_left_child(tree, currentNodeKey, parentNodeKey)) {
                         rotate_right(tree, parentNodeKey, currentNodeKey);
                         currentNodeKey = parentNodeKey;
-                        if (log) std::debug::print(&4);
                     };
-                    if (log) std::debug::print(&5);
                     // 3. Case-III: Set the color of the new parent of curent node as black, and grandparent as red;
                     // then left rotate the grandparent.
                     mark_parent_black(tree, currentNodeKey);
@@ -1436,6 +1578,17 @@ module ferum_std::red_black_tree {
     //
     // TEST ONLY FUNCTIONS
     //
+
+    #[test_only]
+    fun test_tree(nodeKeys: vector<u128>) : Tree<u128> {
+        let tree = new<u128>();
+        let i = 0;
+        while (i < vector::length(&nodeKeys)) {
+            insert(&mut tree, *vector::borrow(&nodeKeys, i), 0);
+            i = i + 1;
+        };
+        tree
+    }
 
     #[test_only]
     fun inorder<V: store + drop>(tree: &Tree<V>): vector<u128> {
