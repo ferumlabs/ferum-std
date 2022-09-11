@@ -496,8 +496,8 @@ module ferum_std::red_black_tree {
     public fun insert_starting_at_node<V: store + drop>(tree: &mut Tree<V>, key: u128, value: V, nodeKey: u128) {
         let node = node_with_key_mut(tree, nodeKey);
         if (key == node.key) {
+            // Because this is a duplicate key, we must not increase the tree length!
             vector::push_back(&mut node.values, value);
-            tree.length = tree.length + 1;
         } else if (key < node.key) {
             // Key is lower than the current value, so go towards left.
             if (node.leftChildNodeKeyIsSet) {
@@ -699,6 +699,7 @@ module ferum_std::red_black_tree {
         assert_inorder_tree(&tree, b"");
         assert!(is_empty(&tree), 0);
         assert!(length(&tree) == 0, 0);
+        assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
 
@@ -940,10 +941,7 @@ module ferum_std::red_black_tree {
         //     10B            15B
         //    /   \    ->    /   \
         //  5R    15R      5R    10R
-        let tree = new<u128>();
-        insert(&mut tree, 10, 0);
-        insert(&mut tree, 5, 0);
-        insert(&mut tree, 15, 0);
+        let tree = test_tree(vector<u128>[10, 5, 15]);
         assert_inorder_tree(&tree, b"5(R) 10 _ _: [0], 10(B) root 5 15: [0], 15(R) 10 _ _: [0]");
         swap_with_successor(&mut tree, 10);
         assert_inorder_tree(&tree, b"5(R) 15 _ _: [0], 15(B) root 5 10: [0], 10(R) 15 _ _: [0]");
@@ -958,11 +956,7 @@ module ferum_std::red_black_tree {
         //  5B    15B   ->    5B   15B
         //       /                /
         //     14R             (10R)
-        let tree = new<u128>();
-        insert(&mut tree, 10, 0);
-        insert(&mut tree, 5, 0);
-        insert(&mut tree, 15, 0);
-        insert(&mut tree, 14, 0);
+        let tree = test_tree(vector<u128>[10, 5, 15, 14]);
         assert_inorder_tree(&tree, b"5(B) 10 _ _: [0], 10(B) root 5 15: [0], 14(R) 15 _ _: [0], 15(B) 10 14 _: [0]");
         swap_with_successor(&mut tree, 10);
         assert_inorder_tree(&tree, b"5(B) 14 _ _: [0], 14(B) root 5 15: [0], 10(R) 15 _ _: [0], 15(B) 14 10 _: [0]");
@@ -979,13 +973,7 @@ module ferum_std::red_black_tree {
         //    13B  25B       (10B)  25B
         //      \               \
         //      14R              14R
-        let tree = new<u128>();
-        insert(&mut tree, 10, 0);
-        insert(&mut tree, 5, 0);
-        insert(&mut tree, 15, 0);
-        insert(&mut tree, 25, 0);
-        insert(&mut tree, 13, 0);
-        insert(&mut tree, 14, 0);
+        let tree = test_tree(vector<u128>[10, 5, 15, 25, 13, 14]);
         assert_inorder_tree(&tree, b"5(B) 10 _ _: [0], 10(B) root 5 15: [0], 13(B) 15 _ 14: [0], 14(R) 13 _ _: [0], 15(R) 10 13 25: [0], 25(B) 15 _ _: [0]");
         swap_with_successor(&mut tree, 10);
         assert_inorder_tree(&tree, b"5(B) 13 _ _: [0], 13(B) root 5 15: [0], 10(B) 15 _ 14: [0], 14(R) 10 _ _: [0], 15(R) 13 10 25: [0], 25(B) 15 _ _: [0]");
@@ -1000,12 +988,7 @@ module ferum_std::red_black_tree {
         //  5  (15)    ->     5   17
         //     /  \             /   \
         //    14  17          14    (15)
-        let tree = new<u128>();
-        insert(&mut tree, 10, 0);
-        insert(&mut tree, 5, 0);
-        insert(&mut tree, 15, 0);
-        insert(&mut tree, 17, 0);
-        insert(&mut tree, 14, 0);
+        let tree = test_tree(vector<u128>[10, 5, 15, 17, 14]);
         assert_inorder_tree(&tree, b"5(B) 10 _ _: [0], 10(B) root 5 15: [0], 14(R) 15 _ _: [0], 15(B) 10 14 17: [0], 17(R) 15 _ _: [0]");
         swap_with_successor(&mut tree, 15);
         assert_inorder_tree(&tree, b"5(B) 10 _ _: [0], 10(B) root 5 17: [0], 14(R) 17 _ _: [0], 17(B) 10 14 15: [0], 15(R) 17 _ _: [0]");
@@ -1022,13 +1005,7 @@ module ferum_std::red_black_tree {
         //    14  17          14    17
         //       /                 /
         //     16                (15)
-        let tree = new<u128>();
-        insert(&mut tree, 10, 0);
-        insert(&mut tree, 5, 0);
-        insert(&mut tree, 15, 0);
-        insert(&mut tree, 14, 0);
-        insert(&mut tree, 17, 0);
-        insert(&mut tree, 16, 0);
+        let tree = test_tree(vector<u128>[10, 5, 15, 14, 17, 16]);
         assert_inorder_tree(&tree, b"5(B) 10 _ _: [0], 10(B) root 5 15: [0], 14(B) 15 _ _: [0], 15(R) 10 14 17: [0], 16(R) 17 _ _: [0], 17(B) 15 16 _: [0]");
         swap_with_successor(&mut tree, 15);
         assert_inorder_tree(&tree, b"5(B) 10 _ _: [0], 10(B) root 5 16: [0], 14(B) 16 _ _: [0], 16(R) 10 14 17: [0], 15(R) 17 _ _: [0], 17(B) 16 15 _: [0]");
@@ -1049,12 +1026,7 @@ module ferum_std::red_black_tree {
 
     #[test(signer = @0x345)]
     fun test_swap_parents(signer: signer) {
-        let tree = new<u128>();
-        insert(&mut tree, 8, 0);
-        insert(&mut tree, 6, 0);
-        insert(&mut tree, 7, 0);
-        insert(&mut tree, 9, 0);
-        insert(&mut tree, 5, 0);
+        let tree = test_tree(vector<u128>[8, 6, 7, 9, 5]);
         assert_inorder_tree(&tree, b"5(R) 6 _ _: [0], 6(B) 7 5 _: [0], 7(B) root 6 8: [0], 8(B) 7 _ 9: [0], 9(R) 8 _ _: [0]");
         swap_parents(&mut tree, 8, 9);
         swap_parents(&mut tree, 6, 5);
@@ -1143,6 +1115,7 @@ module ferum_std::red_black_tree {
         assert_inorder_tree(&tree, b"15(R) 21 _ _: [0], 21(B) root 15 31: [0], 31(R) 21 _ _: [0]");
         insert(&mut tree, 10, 0);
         assert_inorder_tree(&tree, b"10(R) 15 _ _: [0], 15(B) 21 10 _: [0], 21(B) root 15 31: [0], 31(B) 21 _ _: [0]");
+        assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
 
@@ -1155,6 +1128,7 @@ module ferum_std::red_black_tree {
         insert(&mut tree, 5, 0);
         insert(&mut tree, 6, 0);
         assert_inorder_tree(&tree, b"5(R) 6 _ _: [0], 6(B) 21 5 10: [0], 10(R) 6 _ _: [0], 21(B) root 6 31: [0], 31(B) 21 _ _: [0]");
+        assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
 
@@ -1168,6 +1142,7 @@ module ferum_std::red_black_tree {
         assert_inorder_tree(&tree, b"10(R) 15 _ _: [0], 15(B) 21 10 _: [0], 21(B) root 15 31: [0], 31(B) 21 _ _: [0]");
         insert(&mut tree, 5, 0);
         assert_inorder_tree(&tree, b"5(R) 10 _ _: [0], 10(B) 21 5 15: [0], 15(R) 10 _ _: [0], 21(B) root 10 31: [0], 31(B) 21 _ _: [0]");
+        assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
 
@@ -1180,6 +1155,7 @@ module ferum_std::red_black_tree {
         assert_inorder_tree(&tree, b"10(R) 21 _ _: [0], 21(B) root 10 31: [0], 31(R) 21 _ _: [0]");
         insert(&mut tree, 41, 0);
         assert_inorder_tree(&tree, b"10(B) 21 _ _: [0], 21(B) root 10 31: [0], 31(B) 21 _ 41: [0], 41(R) 31 _ _: [0]");
+        assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
 
@@ -1192,6 +1168,7 @@ module ferum_std::red_black_tree {
         insert(&mut tree, 41, 0);
         insert(&mut tree, 35, 0);
         assert_inorder_tree(&tree, b"10(B) 21 _ _: [0], 21(B) root 10 35: [0], 31(R) 35 _ _: [0], 35(B) 21 31 41: [0], 41(R) 35 _ _: [0]");
+        assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
 
@@ -1204,6 +1181,7 @@ module ferum_std::red_black_tree {
         insert(&mut tree, 41, 0);
         insert(&mut tree, 51, 0);
         assert_inorder_tree(&tree, b"10(B) 21 _ _: [0], 21(B) root 10 41: [0], 31(R) 41 _ _: [0], 41(B) 21 31 51: [0], 51(R) 41 _ _: [0]");
+        assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
 
@@ -1222,6 +1200,7 @@ module ferum_std::red_black_tree {
         assert_inorder_tree(&tree, b"0(R) 1 _ _: [0], 1(B) 21 0 10: [0], 10(R) 1 _ _: [0], 21(B) root 1 35: [0], 31(R) 35 _ _: [0], 35(B) 21 31 41: [0], 41(R) 35 _ _: [0]");
         insert(&mut tree, 15, 0);
         assert_inorder_tree(&tree, b"0(B) 1 _ _: [0], 1(R) 21 0 10: [0], 10(B) 1 _ 15: [0], 15(R) 10 _ _: [0], 21(B) root 1 35: [0], 31(R) 35 _ _: [0], 35(B) 21 31 41: [0], 41(R) 35 _ _: [0]");
+        assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
 
@@ -1332,14 +1311,7 @@ module ferum_std::red_black_tree {
 
     #[test(signer = @0x345)]
     fun test_rotate_right_with_root(signer: signer) {
-        let tree = new<u128>();
-        insert(&mut tree, 10, 0);
-        insert(&mut tree, 7, 0);
-        insert(&mut tree, 15, 0);
-        insert(&mut tree, 5, 0);
-        insert(&mut tree, 8, 0);
-        insert(&mut tree, 2, 0);
-        insert(&mut tree, 6, 0);
+        let tree = test_tree(vector<u128>[10, 7, 15, 5, 8, 2, 6]);
         assert_inorder_tree(&tree, b"2(R) 5 _ _: [0], 5(B) 7 2 6: [0], 6(R) 5 _ _: [0], 7(R) 10 5 8: [0], 8(B) 7 _ _: [0], 10(B) root 7 15: [0], 15(B) 10 _ _: [0]");
         rotate_right(&mut tree, 10, 7);
         assert_inorder_tree(&tree, b"2(R) 5 _ _: [0], 5(B) 7 2 6: [0], 6(R) 5 _ _: [0], 7(R) root 5 10: [0], 8(B) 10 _ _: [0], 10(B) 7 8 15: [0], 15(B) 10 _ _: [0]");
@@ -1348,14 +1320,7 @@ module ferum_std::red_black_tree {
 
     #[test(signer = @0x345)]
     fun test_rotate_right(signer: signer) {
-        let tree = new<u128>();
-        insert(&mut tree, 10, 0);
-        insert(&mut tree, 7, 0);
-        insert(&mut tree, 15, 0);
-        insert(&mut tree, 5, 0);
-        insert(&mut tree, 8, 0);
-        insert(&mut tree, 2, 0);
-        insert(&mut tree, 6, 0);
+        let tree = test_tree(vector<u128>[10, 7, 15, 5, 8, 2, 6]);
         assert_inorder_tree(&tree, b"2(R) 5 _ _: [0], 5(B) 7 2 6: [0], 6(R) 5 _ _: [0], 7(R) 10 5 8: [0], 8(B) 7 _ _: [0], 10(B) root 7 15: [0], 15(B) 10 _ _: [0]");
         rotate_right(&mut tree, 7, 5);
         assert_inorder_tree(&tree, b"2(R) 5 _ _: [0], 5(B) 10 2 7: [0], 6(R) 7 _ _: [0], 7(R) 5 6 8: [0], 8(B) 7 _ _: [0], 10(B) root 5 15: [0], 15(B) 10 _ _: [0]");
@@ -1366,24 +1331,14 @@ module ferum_std::red_black_tree {
     #[test(signer = @0x345)]
     #[expected_failure(abort_code = 3)]
     fun test_rotate_right_with_incorrect_nodes(signer: signer) {
-        let tree = new<u128>();
-        insert(&mut tree, 10, 0);
-        insert(&mut tree, 4, 0);
-        insert(&mut tree, 15, 0);
-        insert(&mut tree, 14, 0);
-        insert(&mut tree, 16, 0);
+        let tree = test_tree(vector<u128>[10, 4, 15, 14, 16]);
         rotate_right(&mut tree, 10, 16);
         move_to(&signer, tree)
     }
 
     #[test(signer = @0x345)]
     fun test_rotate_left_with_root(signer: signer) {
-        let tree = new<u128>();
-        insert(&mut tree, 10, 0);
-        insert(&mut tree, 4, 0);
-        insert(&mut tree, 15, 0);
-        insert(&mut tree, 14, 0);
-        insert(&mut tree, 16, 0);
+        let tree = test_tree(vector<u128>[10, 4, 15, 14, 16]);
         assert_inorder_tree(&tree, b"4(B) 10 _ _: [0], 10(B) root 4 15: [0], 14(R) 15 _ _: [0], 15(B) 10 14 16: [0], 16(R) 15 _ _: [0]");
         rotate_left(&mut tree, 10, 15);
         assert_inorder_tree(&tree, b"4(B) 10 _ _: [0], 10(B) 15 4 14: [0], 14(R) 10 _ _: [0], 15(B) root 10 16: [0], 16(R) 15 _ _: [0]");
@@ -1393,12 +1348,7 @@ module ferum_std::red_black_tree {
 
     #[test(signer = @0x345)]
     fun test_rotate_left(signer: signer) {
-        let tree = new<u128>();
-        insert(&mut tree, 10, 0);
-        insert(&mut tree, 4, 0);
-        insert(&mut tree, 15, 0);
-        insert(&mut tree, 14, 0);
-        insert(&mut tree, 16, 0);
+        let tree = test_tree(vector<u128>[10, 4, 15, 14, 16]);
         assert_inorder_tree(&tree, b"4(B) 10 _ _: [0], 10(B) root 4 15: [0], 14(R) 15 _ _: [0], 15(B) 10 14 16: [0], 16(R) 15 _ _: [0]");
         rotate_left(&mut tree, 15, 16);
         assert_inorder_tree(&tree, b"4(B) 10 _ _: [0], 10(B) root 4 16: [0], 14(R) 15 _ _: [0], 15(B) 16 14 _: [0], 16(R) 10 15 _: [0]");
@@ -1409,12 +1359,7 @@ module ferum_std::red_black_tree {
     #[test(signer = @0x345)]
     #[expected_failure(abort_code = 3)]
     fun test_rotate_left_with_incorrect_nodes(signer: signer) {
-        let tree = new<u128>();
-        insert(&mut tree, 10, 0);
-        insert(&mut tree, 4, 0);
-        insert(&mut tree, 15, 0);
-        insert(&mut tree, 14, 0);
-        insert(&mut tree, 16, 0);
+        let tree = test_tree(vector<u128>[10, 4, 15, 14, 16]);
         rotate_left(&mut tree, 10, 16);
         move_to(&signer, tree)
     }
@@ -1430,6 +1375,7 @@ module ferum_std::red_black_tree {
         assert!(length<u128>(&tree) == 0, 0);
         assert!(!contains_key(&tree, 10), 0);
         assert_inorder_tree(&tree, b"");
+        assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
 
@@ -1441,6 +1387,7 @@ module ferum_std::red_black_tree {
         assert!(length<u128>(&tree) == 1, 0);
         assert!(contains_key(&tree, 10), 0);
         assert_inorder_tree(&tree, b"10(B) root _ _: [100]");
+        assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
 
@@ -1450,9 +1397,10 @@ module ferum_std::red_black_tree {
         insert(&mut tree, 10, 10);
         insert(&mut tree, 10, 100);
         assert!(!is_empty<u128>(&tree), 0);
-        assert!(length<u128>(&tree) == 2, 0);
+        assert!(length<u128>(&tree) == 1, 0);
         assert!(contains_key(&tree, 10), 0);
         assert_inorder_tree(&tree, b"10(B) root _ _: [10, 100]");
+        assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
 
@@ -1463,10 +1411,11 @@ module ferum_std::red_black_tree {
         insert(&mut tree, 8, 10);
         insert(&mut tree, 8, 1);
         assert!(!is_empty<u128>(&tree), 0);
-        assert!(length<u128>(&tree) == 3, 0);
+        assert!(length<u128>(&tree) == 2, 0);
         assert!(contains_key(&tree, 10), 0);
         assert!(contains_key(&tree, 8), 0);
         assert_inorder_tree(&tree, b"8(R) 10 _ _: [10, 1], 10(B) root 8 _: [10]");
+        assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
 
@@ -1477,10 +1426,11 @@ module ferum_std::red_black_tree {
         insert(&mut tree, 12, 100);
         insert(&mut tree, 12, 1000);
         assert!(!is_empty<u128>(&tree), 0);
-        assert!(length<u128>(&tree) == 3, 0);
+        assert!(length<u128>(&tree) == 2, 0);
         assert!(contains_key(&tree, 10), 0);
         assert!(contains_key(&tree, 12), 0);
         assert_inorder_tree(&tree, b"10(B) root _ 12: [10], 12(R) 10 _ _: [100, 1000]");
+        assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
 
@@ -1496,6 +1446,7 @@ module ferum_std::red_black_tree {
         assert!(*value_at(&tree, 8) == 10, 0);
         assert!(*value_at(&tree, 10) == 100, 0);
         assert_inorder_tree(&tree, b"8(R) 10 _ _: [10], 10(B) root 8 _: [100]");
+        assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
 
@@ -1572,6 +1523,107 @@ module ferum_std::red_black_tree {
         let (key, value) = peek<u128>(&tree);
         assert!(key == 10, 0);
         assert!(*value == 100, 0);
+        move_to(&signer, tree)
+    }
+
+    //
+    // FUZZ TESTING
+    //
+
+    #[test(signer = @0x345)]
+    fun test_large_sorted_insertion(signer: signer) {
+        let tree = new<u128>();
+        let i = 0;
+        while (i < 100) {
+            insert(&mut tree, i, i);
+            assert!(contains_key(&tree, i), 0);
+            assert!(length<u128>(&tree) == i + 1, 0);
+            assert_red_black_tree(&tree);
+            i = i + 1;
+        };
+        while (i > 0) {
+            i = i - 1;
+            delete_node(&mut tree, i);
+            assert!(!contains_key(&tree, i), 0);
+            assert!(length<u128>(&tree) == i, 0);
+            assert_red_black_tree(&tree);
+        };
+        assert!(is_empty(&tree), 0);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_large_sorted_reverse_order(signer: signer) {
+        let tree = new<u128>();
+        let count = 100;
+        let i = count;
+        while (i > 0) {
+            i = i - 1;
+            insert(&mut tree, i, i);
+            assert!(contains_key(&tree, i), 0);
+            assert!(length<u128>(&tree) == count - i, 0);
+            assert_red_black_tree(&tree);
+        };
+        while (i < count) {
+            delete_node(&mut tree, i);
+            assert!(!contains_key(&tree, i), 0);
+            assert!(length<u128>(&tree) == count - i - 1, 0);
+            assert_red_black_tree(&tree);
+            i = i + 1;
+        };
+        assert!(is_empty(&tree), 0);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_large_random_key_set_with_peek_deletion(signer: signer) {
+        let tree = new<u128>();
+        let i = 1;
+        let count = 100;
+        while (i < count) {
+            let key = 340282366920938463463374607431768211455u128 % (i * i * i);
+            insert(&mut tree, key, i);
+            assert!(contains_key(&tree, key), 0);
+            assert_red_black_tree(&tree);
+            i = i + 1;
+        };
+        while (!is_empty(&tree)) {
+            let (key, _) = peek(&tree);
+            let lengthBeforeDeletion = length<u128>(&tree);
+            delete_node(&mut tree, key);
+            assert!(lengthBeforeDeletion == length<u128>(&tree) + 1, 0);
+            assert_red_black_tree(&tree);
+            i = i - 1;
+        };
+        assert!(is_empty(&tree), 0);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_large_random_key_set_with_inorder_deletion(signer: signer) {
+        let tree = new<u128>();
+        let i = 1u64;
+        let count = 100;
+        let keys = &mut vector::empty<u128>();
+        while (i < count) {
+            let key = 34028236692093846343746074317682114 % ((i * i * i) as u128);
+            insert(&mut tree, key, 0);
+            assert!(contains_key(&tree, key), 0);
+            assert_red_black_tree(&tree);
+            i = i + 1;
+            // This avoids trying to remove duplicate keys and crashing.
+            if (!vector::contains(keys, &key)) {
+                vector::push_back(keys, key);
+            };
+        };
+        i = 0;
+        while (i < vector::length(keys)) {
+            let key = *vector::borrow(keys, i);
+            delete_node(&mut tree, key);
+            assert_red_black_tree(&tree);
+            i = i + 1;
+        };
+        assert!(is_empty(&tree), 0);
         move_to(&signer, tree)
     }
 
@@ -1677,9 +1729,141 @@ module ferum_std::red_black_tree {
     }
 
     #[test_only]
+    const INVALID_ROOD_NODE_COLOR: u64 = 1;
+    const TWO_ADJACENT_RED_NODES: u64 = 2;
+    const INVALID_BLACK_NODE_DEPTH: u64 = 3;
+
+    #[test_only]
     fun assert_red_black_tree(tree: &Tree<u128>) {
-        // Condition 1. The root node must be black!
-        assert!(!is_red(tree, tree.rootNodeKey), 0)
-        // TODO: Add the rest of the conditions!
+        // Condition 1: Every node has a color either red or black [no need to check].
+        if (!is_empty(tree)) {
+            // Condition 2. All node keys must point to other valid nodes.
+            assert_correct_node_keys(tree, tree.rootNodeKey);
+            // Condition 3. The root node must be black!
+            assert!(!is_red(tree, tree.rootNodeKey), INVALID_ROOD_NODE_COLOR);
+            // Condition 4: There are no two adjacent red nodes (A red node cannot have a red parent or red child).
+            assert_no_two_adjacent_red_nodes_inorder<u128>(tree, tree.rootNodeKey);
+            // Condition 5: Every path from a node (including root) to any of its descendants leaf nodes has the same
+            // number of black nodes.
+            assert_black_node_depth_starting_node<u128>(tree, tree.rootNodeKey);
+        };
+        // Condition 6: All leaf nodes are black nodes [no need to check].
+    }
+
+    #[test_only]
+    fun assert_correct_node_keys<V: store + drop>(tree: &Tree<V>, currentNodeKey: u128) {
+        let currentNode = node_with_key(tree, currentNodeKey);
+        if (currentNode.parentNodeKeyIsSet) {
+            let parentNode = node_with_key(tree, currentNode.parentNodeKey);
+            assert!(parentNode.key == currentNode.parentNodeKey, 0)
+        };
+        if (currentNode.leftChildNodeKeyIsSet) {
+            let leftChildNode = node_with_key(tree, currentNode.leftChildNodeKey);
+            assert!(leftChildNode.key == currentNode.leftChildNodeKey, 0);
+            assert_correct_node_keys(tree, currentNode.leftChildNodeKey);
+        };
+        if (currentNode.rightChildNodeKeyIsSet) {
+            let rightChildNode = node_with_key(tree, currentNode.rightChildNodeKey);
+            assert!(rightChildNode.key == currentNode.rightChildNodeKey, 0);
+            assert_correct_node_keys(tree, currentNode.rightChildNodeKey);
+        };
+    }
+
+    #[test(signer = @0x345)]
+    #[expected_failure(abort_code = 2)]
+    fun test_assert_correct_node_keys_with_invalid_parent(signer: signer) {
+        let tree = test_tree(vector<u128>[10, 15, 25]);
+        node_with_key_mut<u128>(&mut tree, 15).parentNodeKeyIsSet = true;
+        node_with_key_mut<u128>(&mut tree, 15).parentNodeKey = 100;
+        assert_correct_node_keys(&tree, tree.rootNodeKey);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    #[expected_failure(abort_code = 2)]
+    fun test_assert_correct_node_keys_with_invalid_left_child(signer: signer) {
+        let tree = test_tree(vector<u128>[10, 15, 25]);
+        node_with_key_mut<u128>(&mut tree, 15).leftChildNodeKeyIsSet = true;
+        node_with_key_mut<u128>(&mut tree, 15).leftChildNodeKey = 100;
+        assert_correct_node_keys(&tree, tree.rootNodeKey);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    #[expected_failure(abort_code = 2)]
+    fun test_assert_correct_node_keys_with_invalid_right_child(signer: signer) {
+        let tree = test_tree(vector<u128>[10, 15, 25]);
+        node_with_key_mut<u128>(&mut tree, 15).rightChildNodeKeyIsSet = true;
+        node_with_key_mut<u128>(&mut tree, 15).rightChildNodeKey = 100;
+        assert_correct_node_keys(&tree, tree.rootNodeKey);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    #[expected_failure(abort_code = 1)]
+    fun test_assert_red_black_tree_with_red_root_node(signer: signer) {
+        let tree = test_tree(vector<u128>[10]);
+        mark_red(&mut tree, 10);
+        assert_red_black_tree(&tree);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    #[expected_failure(abort_code = 2)]
+    fun test_assert_red_black_tree_with_two_adjacent_red_nodes(signer: signer) {
+        let tree = test_tree(vector<u128>[10, 5, 15, 25, 35]);
+        mark_red(&mut tree, 25);
+        assert_red_black_tree(&tree);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    #[expected_failure(abort_code = 3)]
+    fun test_assert_red_black_tree_with_invalid_black_depth(signer: signer) {
+        let tree = test_tree(vector<u128>[10, 5, 15, 25, 35, 40, 45]);
+        mark_black(&mut tree, 25);
+        assert_red_black_tree(&tree);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    #[expected_failure(abort_code = 3)]
+    fun test_assert_red_black_tree_with_invalid_black_depth_leaf_node(signer: signer) {
+        let tree = test_tree(vector<u128>[10, 5, 15, 25, 35]);
+        mark_black(&mut tree, 35);
+        assert_red_black_tree(&tree);
+        move_to(&signer, tree)
+    }
+
+    #[test_only]
+    fun assert_black_node_depth_starting_node<V: store + drop>(tree: &Tree<V>, currentNodeKey: u128) : u128 {
+        let currentNodeCount = if (is_red(tree, currentNodeKey)) { 0 } else { 1 };
+        if (has_left_child(tree, currentNodeKey) && has_right_child(tree, currentNodeKey)) {
+            let leftChildDepth = assert_black_node_depth_starting_node(tree, left_child_key(tree, currentNodeKey));
+            let rightChildDepth = assert_black_node_depth_starting_node(tree, right_child_key(tree, currentNodeKey));
+            assert!(leftChildDepth == rightChildDepth, INVALID_BLACK_NODE_DEPTH);
+            return currentNodeCount + leftChildDepth
+        } else if (has_left_child(tree, currentNodeKey)) {
+            let leftChildDepth = assert_black_node_depth_starting_node(tree, left_child_key(tree, currentNodeKey));
+            return currentNodeCount + leftChildDepth
+        } else if (has_right_child(tree, currentNodeKey)) {
+            let rightChildDepth = assert_black_node_depth_starting_node(tree,right_child_key(tree, currentNodeKey));
+            return currentNodeCount + rightChildDepth
+        };
+        return currentNodeCount
+    }
+
+    #[test_only]
+    fun assert_no_two_adjacent_red_nodes_inorder<V: store + drop>(tree: &Tree<V>, currentNodeKey: u128) {
+        let currentNode = node_with_key(tree, currentNodeKey);
+        let isCurrentNodeRed = is_red(tree, currentNodeKey);
+        if (currentNode.leftChildNodeKeyIsSet) {
+            assert!(!isCurrentNodeRed || isCurrentNodeRed != is_red(tree, currentNode.leftChildNodeKey), TWO_ADJACENT_RED_NODES);
+            assert_no_two_adjacent_red_nodes_inorder(tree, currentNode.leftChildNodeKey)
+        };
+        if (currentNode.rightChildNodeKeyIsSet) {
+            assert!(!isCurrentNodeRed || isCurrentNodeRed != is_red(tree, currentNode.rightChildNodeKey), TWO_ADJACENT_RED_NODES);
+            assert_no_two_adjacent_red_nodes_inorder(tree, currentNode.rightChildNodeKey)
+        };
     }
 }
