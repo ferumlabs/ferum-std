@@ -4,7 +4,7 @@ Move is an awesome langauge, but since the ecosystem is still early, it's missin
 
 ## List of Modules
 
-* [`ferum_std::fixed_point_64`](#fixed-point) — Ferum's implementation of FixedPoint, helping manage decimal points represented as integers.
+* [`ferum_std::fixed_point_64`](./#fixed-point) — Ferum's implementation of FixedPoint, helping manage decimal points represented as integers.
 
 ## Installing
 
@@ -20,7 +20,7 @@ Use `FerumSTD = { git = "https://github.com/ferum-dex/ferum-std.git", rev = "mai
 
 2\. Run `aptos move compile`; sometimes you may need to run `aptos move clean`.
 
-3\. Import a module and start using it. For example: &#x20;
+3\. Import a module and start using it. For example:
 
 ```
 use ferum_std::fixed_point_64::{Self, FixedPoint64};
@@ -29,11 +29,12 @@ let one = fixed_point_64::from_u64(1000, 3);
 ```
 
 ## Documentation
-There are some quick examples below for each module, but if you want to see more extensive docs for all the functions, checkout our [Ferum Standard Library Docs](https://ferum.gitbook.io/ferum-standard-library/).
 
-## Quick Examples 
+There are some quick examples below for each module, but if you want to see more extensive docs for all the functions, checkout the [Ferum Standard Library Docs](https://ferum.gitbook.io/ferum-standard-library/).
 
-### Fixed Point
+## Quick Examples
+
+### Fixed Point ([Full Docs](./#fixed-point))
 
 ```
 use ferum_std::fixed_point_64::{Self, FixedPoint64};
@@ -64,6 +65,7 @@ let dividedTruncated = fixed_point_64::divide_trunc(b, a);
 let au64 = fixed_point_64::to_u64(a, 3);
 let bu64 = fixed_point_64::to_u64(b, 2);
 ```
+
 ## Contributing
 
 We welcome all contributions; just make sure that you add unit tests to all new code added, and run `aptos move test` before making a pull request. All updates must be backwards compatible.
