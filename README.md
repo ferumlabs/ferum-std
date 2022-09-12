@@ -34,7 +34,7 @@ There are some quick examples below for each module, but if you want to see more
 
 ## Quick Examples
 
-### Fixed Point ([Full Docs](./#fixed-point))
+### Fixed Point ([Full Docs](docs/fixed\_point\_64.md))
 
 ```
 use ferum_std::fixed_point_64::{Self, FixedPoint64};
