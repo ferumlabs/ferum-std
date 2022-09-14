@@ -15,8 +15,11 @@
 module ferum_std::red_black_tree {
     use std::vector;
     use aptos_std::table;
+    #[test_only]
     use ferum_std::test_utils::to_string_u128;
+    #[test_only]
     use ferum_std::test_utils::to_string_vector;
+    #[test_only]
     use std::string::{Self, String};
 
     ///
