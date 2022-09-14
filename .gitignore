@@ -1,3 +1,4 @@
 .aptos
 .idea
 build
+.DS_Store
