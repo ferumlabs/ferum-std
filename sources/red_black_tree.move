@@ -875,74 +875,164 @@ module ferum_std::red_black_tree {
     /// ROTATIONS
     ///
 
-    fun rotate_right<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, childNodeKey: u128) {
-        // 0. Check parent/child preconditions!
+    // Performs a right rotation centered around a parent node (PN) and a child node (CN):
+    //
+    //      PN                         CN
+    //     / \                        / \
+    //    CN  T3      rotated       T1   PN
+    //   / \        ---------->          / \
+    //  T1   T2                         T2  T3
+    //
+    // where T1, T2, and T3 are subtrees (possibly empty).
+    // If CN is not the right child of the parent, will throw an error.
+    fun rotate_right<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, nodeKey: u128) {
+        if (tree.rootNodeKey == parentNodeKey) {
+            tree.rootNodeKey = nodeKey;
+        };
+
+        // First process the node mutations.
+        let newLeftChild = 0u128;
+        let newLeftChildIsSet = false;
         {
-            let parentNode = get_node(tree, parentNodeKey);
-            let childNode = get_node(tree, childNodeKey);
-            assert!(parentNode.leftChildNodeKey == childNodeKey, INVALID_ROTATION_NODES);
-            assert!(childNode.parentNodeKey == parentNodeKey, INVALID_ROTATION_NODES);
+            // Save grandparent information for later.
+            let parent = get_node(tree, parentNodeKey);
+            let grandparentKey = parent.parentNodeKey;
+            let grandparentKeyIsSet = parent.parentNodeKeyIsSet;
+            // Modify grandparent to point to current node.
+            if (grandparentKeyIsSet) {
+                let grandparent = get_node_mut(tree, grandparentKey);
+                if (grandparent.leftChildNodeKey == parentNodeKey) {
+                    grandparent.leftChildNodeKey = nodeKey;
+                } else {
+                    grandparent.rightChildNodeKey = nodeKey;
+                }
+            };
+
+            let node = get_node_mut(tree, nodeKey);
+
+            // Validate node properties.
+            assert!(node.parentNodeKeyIsSet && node.parentNodeKey == parentNodeKey, INVALID_ROTATION_NODES);
+
+            // Disconnect from parent.
+            node.parentNodeKeyIsSet = false;
+
+            // If node has a right subtree, it becomes the left child of the parent.
+            // We save this information for later.
+            if (node.rightChildNodeKeyIsSet) {
+                let rightChildNode = get_node_mut(tree, node.rightChildNodeKey);
+                rightChildNode.parentNodeKey = parentNodeKey;
+                rightChildNode.parentNodeKeyIsSet = true;
+                newLeftChild = rightChildNode.key;
+                newLeftChildIsSet = true;
+            };
+
+            // Re-borrow.
+            let node = get_node_mut(tree, nodeKey);
+
+            // Set parent of node to be its grandparent (using info we saved above).
+            node.parentNodeKey = grandparentKey;
+            node.parentNodeKeyIsSet = grandparentKeyIsSet;
+
+            // Set right child of node to be the parent.
+            node.rightChildNodeKey = parentNodeKey;
+            node.rightChildNodeKeyIsSet = true;
         };
 
-        // 1. If child has a right subtree, assign parent as the new parent of the right subtree of the child.
-        if (has_right_child(tree, childNodeKey)) {
-            let rightGrandchildNodeKey = get_node(tree, childNodeKey).rightChildNodeKey;
-            let rightGrandchildNode = get_node_mut(tree, rightGrandchildNodeKey);
-            // a. Fix the link upwards; the right substree points to the grandparent.
-            rightGrandchildNode.parentNodeKey = parentNodeKey;
-            // b. Parent node's left child now points to child's right substree.
+        // Now process the parent mutations.
+        {
             let parent = get_node_mut(tree, parentNodeKey);
-            parent.leftChildNodeKey = rightGrandchildNodeKey;
-            parent.leftChildNodeKeyIsSet = true;
-        } else {
-            // If the child node doesn't have a left subtree, we must disconnect the parent from the child.
-            let parent = get_node_mut(tree, parentNodeKey);
-            parent.leftChildNodeKeyIsSet = false;
+
+            // Validate parent properties.
+            assert!(parent.leftChildNodeKeyIsSet && parent.leftChildNodeKey == nodeKey, INVALID_ROTATION_NODES);
+
+            // Replace left child of parent using info we saved.
+            parent.leftChildNodeKey = newLeftChild;
+            parent.leftChildNodeKeyIsSet = newLeftChildIsSet;
+
+            // Set parent of parent node to be the original node.
+            parent.parentNodeKey = nodeKey;
+            parent.parentNodeKeyIsSet = true;
         };
-
-        // 2. Swap the parents; the parent's parent is now the child, and the child's parent is the parent's old parent.
-        swap_parents(tree, parentNodeKey, childNodeKey);
-
-        // 3. Make the parent the new child of the child (as the right node).
-        let childNode = get_node_mut(tree, childNodeKey);
-        childNode.rightChildNodeKey = parentNodeKey;
-        childNode.rightChildNodeKeyIsSet = true;
     }
 
-    // Good example to follow is here, https://www.programiz.com/dsa/red-black-tree
-    // We renaming x and y, with parent and child to make it a bit more concrete.
-    fun rotate_left<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, childNodeKey: u128) {
-        // 0. Check parent/child preconditions!
+    // Performs a left rotation centered around a parent node (PN) and a child node (CN):
+    //
+    //     PN                          CN
+    //    / \                         / \
+    //   T1  CN       rotated       PN   T3
+    //       / \    ---------->    / \
+    //      T2  T3               T1  T2
+    //
+    // where T1, T2, T3, and T4 are subtrees (possibly empty).
+    // If CN is not the left child of the parent, will throw an error.
+    fun rotate_left<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, nodeKey: u128) {
+        if (tree.rootNodeKey == parentNodeKey) {
+            tree.rootNodeKey = nodeKey;
+        };
+
+        // First process the node mutations.
+        let newRightChild = 0u128;
+        let newRightChildIsSet = false;
         {
-            let parentNode = get_node(tree, parentNodeKey);
-            let childNode = get_node(tree, childNodeKey);
-            assert!(parentNode.rightChildNodeKey == childNodeKey, INVALID_ROTATION_NODES);
-            assert!(childNode.parentNodeKey == parentNodeKey, INVALID_ROTATION_NODES);
+            // Save grandparent information for later.
+            let parent = get_node(tree, parentNodeKey);
+            let grandparentKey = parent.parentNodeKey;
+            let grandparentKeyIsSet = parent.parentNodeKeyIsSet;
+            // Modify grandparent to point to current node.
+            if (grandparentKeyIsSet) {
+                let grandparent = get_node_mut(tree, grandparentKey);
+                if (grandparent.leftChildNodeKey == parentNodeKey) {
+                    grandparent.leftChildNodeKey = nodeKey;
+                } else {
+                    grandparent.rightChildNodeKey = nodeKey;
+                }
+            };
+
+            let node = get_node_mut(tree, nodeKey);
+
+            // Validate node properties.
+            assert!(node.parentNodeKeyIsSet && node.parentNodeKey == parentNodeKey, INVALID_ROTATION_NODES);
+
+            // Disconnect from parent.
+            node.parentNodeKeyIsSet = false;
+
+            // If node has a left subtree, it becomes the right child of the parent.
+            // We save this information for later.
+            if (node.leftChildNodeKeyIsSet) {
+                let leftChildNode = get_node_mut(tree, node.leftChildNodeKey);
+                leftChildNode.parentNodeKey = parentNodeKey;
+                leftChildNode.parentNodeKeyIsSet = true;
+                newRightChild = leftChildNode.key;
+                newRightChildIsSet = true;
+            };
+
+            // Re-borrow.
+            let node = get_node_mut(tree, nodeKey);
+
+            // Set parent of node to be its grandparent (using info we saved above).
+            node.parentNodeKey = grandparentKey;
+            node.parentNodeKeyIsSet = grandparentKeyIsSet;
+
+            // Set left child of node to be the parent.
+            node.leftChildNodeKey = parentNodeKey;
+            node.leftChildNodeKeyIsSet = true;
         };
 
-        // 1. If child has a left subtree, assign parent as the new parent of the left subtree of the child.
-        if (has_left_child(tree, childNodeKey)) {
-            let leftGrandchildNodeKey = get_node(tree, childNodeKey).leftChildNodeKey;
-            let leftGrandchildNode = get_node_mut(tree, leftGrandchildNodeKey);
-            // a. Fix the link upwards.
-            leftGrandchildNode.parentNodeKey = parentNodeKey;
-            // b. Parent node's right child now points to child's left substree.
+        // Now process the parent mutations.
+        {
             let parent = get_node_mut(tree, parentNodeKey);
-            parent.rightChildNodeKey = leftGrandchildNodeKey;
-            parent.rightChildNodeKeyIsSet = true;
-        } else {
-            // If the child node doesn't have a left subtree, we must disconnect the parent from the child.
-            let parent = get_node_mut(tree, parentNodeKey);
-            parent.rightChildNodeKeyIsSet = false;
+
+            // Validate parent properties.
+            assert!(parent.rightChildNodeKeyIsSet && parent.rightChildNodeKey == nodeKey, INVALID_ROTATION_NODES);
+
+            // Replace right child of parent using info we saved.
+            parent.rightChildNodeKey = newRightChild;
+            parent.rightChildNodeKeyIsSet = newRightChildIsSet;
+
+            // Set parent of parent node to be the original node.
+            parent.parentNodeKey = nodeKey;
+            parent.parentNodeKeyIsSet = true;
         };
-
-        // 2. Swap the parents; the parent's parent is now the child, and the child's parent is the parent's old parent.
-        swap_parents(tree, parentNodeKey, childNodeKey);
-
-        // 3. Make the parent the new child of the child (as the left node).
-        let childNode = get_node_mut(tree, childNodeKey);
-        childNode.leftChildNodeKey = parentNodeKey;
-        childNode.leftChildNodeKeyIsSet = true;
     }
 
     // Neither the parent's nor the child's children nodes will be effected; this is only swapping the
