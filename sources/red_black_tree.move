@@ -707,168 +707,6 @@ module ferum_std::red_black_tree {
         tree.length = tree.length - 1
     }
 
-    #[test(signer = @0x345)]
-    fun test_delete_root_leaf_node(signer: signer) {
-        // It's just a leaf root node.
-        let tree = test_tree(vector<u128>[10]);
-        assert_inorder_tree(&tree, b"10(B) root _ _: [0]");
-        assert!(length(&tree) == 1, 0);
-        delete(&mut tree, 10);
-        assert_inorder_tree(&tree, b"");
-        assert!(is_empty(&tree), 0);
-        assert!(length(&tree) == 0, 0);
-        assert_red_black_tree(&tree);
-        move_to(&signer, tree)
-    }
-
-    #[test(signer = @0x345)]
-    fun test_delete_root_node_with_red_left_successor(signer: signer) {
-        // It's just a leaf root node.
-        let tree = test_tree(vector<u128>[10, 5]);
-        assert_inorder_tree(&tree, b"5(R) 10 _ _: [0], 10(B) root 5 _: [0]");
-        assert!(length(&tree) == 2, 0);
-        delete(&mut tree, 10);
-        assert_inorder_tree(&tree, b"5(B) root _ _: [0]");
-        assert!(length(&tree) == 1, 0);
-        move_to(&signer, tree)
-    }
-
-    #[test(signer = @0x345)]
-    fun test_delete_root_node_with_red_right_successor(signer: signer) {
-        // It's just a leaf root node.
-        let tree = test_tree(vector<u128>[10, 15]);
-        assert_inorder_tree(&tree, b"10(B) root _ 15: [0], 15(R) 10 _ _: [0]");
-        assert!(length(&tree) == 2, 0);
-        delete(&mut tree, 10);
-        assert_inorder_tree(&tree, b"15(B) root _ _: [0]");
-        assert!(length(&tree) == 1, 0);
-        move_to(&signer, tree)
-    }
-
-    #[test(signer = @0x345)]
-    fun test_delete_root_node_with_two_red_successors(signer: signer) {
-        let tree = test_tree(vector<u128>[10, 5, 15]);
-        assert_inorder_tree(&tree, b"5(R) 10 _ _: [0], 10(B) root 5 15: [0], 15(R) 10 _ _: [0]");
-        assert!(length(&tree) == 3, 0);
-        delete(&mut tree, 10);
-        assert_inorder_tree(&tree, b"5(R) 15 _ _: [0], 15(B) root 5 _: [0]");
-        assert!(length(&tree) == 2, 0);
-        move_to(&signer, tree)
-    }
-
-    #[test(signer = @0x345)]
-    fun test_delete_black_node_with_two_children(signer: signer) {
-        let tree = test_tree(vector<u128>[1, 2, 3, 4, 5, 6, 7]);
-        assert_inorder_tree(&tree, b"1(B) 2 _ _: [0], 2(B) root 1 4: [0], 3(B) 4 _ _: [0], 4(R) 2 3 6: [0], 5(R) 6 _ _: [0], 6(B) 4 5 7: [0], 7(R) 6 _ _: [0]");
-        delete(&mut tree, 6);
-        assert_inorder_tree(&tree, b"1(B) 2 _ _: [0], 2(B) root 1 4: [0], 3(B) 4 _ _: [0], 4(R) 2 3 7: [0], 5(R) 7 _ _: [0], 7(B) 4 5 _: [0]");
-        delete(&mut tree, 4);
-        assert_inorder_tree(&tree, b"1(B) 2 _ _: [0], 2(B) root 1 5: [0], 3(B) 5 _ _: [0], 5(R) 2 3 7: [0], 7(B) 5 _ _: [0]");
-        delete(&mut tree, 1);
-        assert_inorder_tree(&tree, b"2(B) 5 _ 3: [0], 3(R) 2 _ _: [0], 5(B) root 2 7: [0], 7(B) 5 _ _: [0]");
-        delete(&mut tree, 7);
-        assert_inorder_tree(&tree, b"2(B) 3 _ _: [0], 3(B) root 2 5: [0], 5(B) 3 _ _: [0]");
-        move_to(&signer, tree)
-    }
-
-    #[test(signer = @0x345)]
-    fun test_delete_red_leaf_nodes(signer: signer) {
-        // It's just a leaf node.
-        let tree = test_tree(vector<u128>[10, 5, 15]);
-        assert_inorder_tree(&tree, b"5(R) 10 _ _: [0], 10(B) root 5 15: [0], 15(R) 10 _ _: [0]");
-        delete(&mut tree, 5);
-        assert_inorder_tree(&tree, b"10(B) root _ 15: [0], 15(R) 10 _ _: [0]");
-        delete(&mut tree, 15);
-        assert_inorder_tree(&tree, b"10(B) root _ _: [0]");
-        move_to(&signer, tree)
-    }
-
-    #[test(signer = @0x345)]
-    fun test_delete_black_node_with_red_left_child_sucessor(signer: signer) {
-        // The successor is red and is the left child of the node getting deleted.
-        let tree = test_tree(vector<u128>[10, 5, 15, 3, 7, 1]);
-        assert_inorder_tree(&tree, b"1(R) 3 _ _: [0], 3(B) 5 1 _: [0], 5(R) 10 3 7: [0], 7(B) 5 _ _: [0], 10(B) root 5 15: [0], 15(B) 10 _ _: [0]");
-        delete(&mut tree, 3);
-        assert_inorder_tree(&tree, b"1(B) 5 _ _: [0], 5(R) 10 1 7: [0], 7(B) 5 _ _: [0], 10(B) root 5 15: [0], 15(B) 10 _ _: [0]");
-        move_to(&signer, tree)
-    }
-
-    #[test(signer = @0x345)]
-    fun test_delete_black_node_with_red_right_child_sucessor(signer: signer) {
-        // The successor is red and is the left child of the node getting deleted.
-        let tree = test_tree(vector<u128>[10, 5, 15, 7]);
-        assert_inorder_tree(&tree, b"5(B) 10 _ 7: [0], 7(R) 5 _ _: [0], 10(B) root 5 15: [0], 15(B) 10 _ _: [0]");
-        delete(&mut tree, 5);
-        assert_inorder_tree(&tree, b"7(B) 10 _ _: [0], 10(B) root 7 15: [0], 15(B) 10 _ _: [0]");
-        move_to(&signer, tree)
-    }
-
-    #[test(signer = @0x345)]
-    fun test_delete_leaf_black_node_case_3_2_a_i(signer: signer) {
-        let tree = test_tree(vector<u128>[20, 15, 25, 10, 17]);
-        delete(&mut tree, 25);
-        assert_inorder_tree(&tree, b"10(B) 15 _ _: [0], 15(B) root 10 20: [0], 17(R) 20 _ _: [0], 20(B) 15 17 _: [0]");
-        move_to(&signer, tree)
-    }
-
-    #[test(signer = @0x345)]
-    fun test_delete_leaf_black_node_case_3_2_a_ii(signer: signer) {
-        let tree = test_tree(vector<u128>[20, 15, 25, 17]);
-        delete(&mut tree, 25);
-        assert_inorder_tree(&tree, b"15(B) 17 _ _: [0], 17(B) root 15 20: [0], 20(B) 17 _ _: [0]");
-        move_to(&signer, tree)
-    }
-
-    #[test(signer = @0x345)]
-    fun test_delete_leaf_black_node_case_3_2_a_iii(signer: signer) {
-        let tree = test_tree(vector<u128>[30, 20, 40, 35, 50]);
-        delete(&mut tree, 20);
-        assert_inorder_tree(&tree, b"30(B) 40 _ 35: [0], 35(R) 30 _ _: [0], 40(B) root 30 50: [0], 50(B) 40 _ _: [0]");
-        move_to(&signer, tree)
-    }
-
-    #[test(signer = @0x345)]
-    fun test_delete_leaf_black_node_case_3_2_a_iv(signer: signer) {
-        let tree = test_tree(vector<u128>[30, 20, 40, 35]);
-        delete(&mut tree, 20);
-        assert_inorder_tree(&tree, b"30(B) 35 _ _: [0], 35(B) root 30 40: [0], 40(B) 35 _ _: [0]");
-        move_to(&signer, tree)
-    }
-
-    #[test(signer = @0x345)]
-    fun test_delete_leaf_black_node_case_3_2_b_black_parent(signer: signer) {
-        let tree = test_tree(vector<u128>[20, 10, 25, 35]);
-        delete(&mut tree, 35);
-        delete(&mut tree, 10);
-        assert_inorder_tree(&tree, b"20(B) root _ 25: [0], 25(R) 20 _ _: [0]");
-        move_to(&signer, tree)
-    }
-
-    #[test(signer = @0x345)]
-    fun test_delete_leaf_black_node_case_3_2_b_red_parent(signer: signer) {
-        let tree = test_tree(vector<u128>[20, 10, 25, 30, 23, 35]);
-        delete(&mut tree, 35);
-        delete(&mut tree, 30);
-        assert_inorder_tree(&tree, b"10(B) 20 _ _: [0], 20(B) root 10 25: [0], 23(R) 25 _ _: [0], 25(B) 20 23 _: [0]");
-        move_to(&signer, tree)
-    }
-
-    #[test(signer = @0x345)]
-    fun test_delete_leaf_black_node_case_3_2_c_i(signer: signer) {
-        let tree = test_tree(vector<u128>[20, 10, 30, 1, 2, 3]);
-        delete(&mut tree, 30);
-        assert_inorder_tree(&tree, b"1(B) 2 _ _: [0], 2(B) root 1 10: [0], 3(B) 10 _ _: [0], 10(R) 2 3 20: [0], 20(B) 10 _ _: [0]");
-        move_to(&signer, tree)
-    }
-
-    #[test(signer = @0x345)]
-    fun test_delete_leaf_black_node_case_3_2_c_ii(signer: signer) {
-        let tree = test_tree(vector<u128>[20, 10, 30, 45, 50, 55]);
-        delete(&mut tree, 10);
-        assert_inorder_tree(&tree, b"20(B) 45 _ 30: [0], 30(R) 20 _ _: [0], 45(B) root 20 50: [0], 50(B) 45 _ 55: [0], 55(R) 50 _ _: [0]");
-        move_to(&signer, tree)
-    }
-
     ///
     /// SUCCESSOR SWAPPING
     ///
@@ -957,6 +795,176 @@ module ferum_std::red_black_tree {
         mark_color(tree, nodeKey, isSuccessorRed);
         mark_color(tree, successorKey, isNodeRed);
     }
+
+    // Mostly, following the guidelines here: https://www.programiz.com/dsa/insertion-in-a-red-black-tree.
+    // It's much easier to follow the code from the above link, than the diagrams & annotations.
+    // Also note that in the tutorial's code, the diagram's and the code have the top level if statement flipped.
+    // If you're using, good visualization here: https://www.cs.usfca.edu/~galles/visualization/RedBlack.html.
+    fun fix_double_red<V: store + drop>(tree: &mut Tree<V>, currentNodeKey: u128) {
+        // 1. Continue while the parent of the current node is red! Keep in mind that root is always black, so
+        // this condition only applies to 3rd layers and below.
+        while (has_parent(tree, currentNodeKey) && is_parent_red(tree, currentNodeKey)) {
+            assert!(has_grandparent(tree, currentNodeKey), 0);
+            let parentNodeKey = parent_node_key(tree, currentNodeKey);
+            let grandparentNodeKey = parent_node_key(tree, parentNodeKey);
+            // 2. Split based on if the current parent is on the left or on the right side of the grandparent.
+            if (is_left_child(tree, parentNodeKey, grandparentNodeKey)) {
+                // 2. Case-I: If the color of the right child of grandaprent of current node is RED, set the color of
+                // both the children of grandparent as BLACK and the color of grandparent as RED.
+                if (has_right_child(tree, grandparentNodeKey) && is_right_child_red(tree, grandparentNodeKey) ) {
+                    mark_children_black(tree, grandparentNodeKey);
+                    mark_red(tree, grandparentNodeKey);
+                    currentNodeKey = grandparentNodeKey;
+                } else {
+                    // 2. Case-II: Else if current node is the right child of the parent node then, left rotate the
+                    // current node and parent node, then assign parent to be the new current node.
+                    if (is_right_child(tree, currentNodeKey, parentNodeKey)) {
+                        rotate_left(tree, parentNodeKey, currentNodeKey);
+                        currentNodeKey = parentNodeKey;
+                    };
+                    // 2. Case-III: Set the color of the new parent of curent node as black, and grandparent as red;
+                    // then right rotate the grandparent.
+                    mark_parent_black(tree, currentNodeKey);
+                    mark_grandparent_red(tree, currentNodeKey);
+                    let parentNodeKey = parent_node_key(tree, currentNodeKey);
+                    let grandparentNodeKey = grandparent_node_key(tree, currentNodeKey);
+                    rotate_right(tree, grandparentNodeKey, parentNodeKey);
+                }
+            } else {
+                // 3. The code below is the mirror version of the one above. For example, we check if the left uncle
+                // is black instead of the right uncle unlike we did above. Similarly, we still need to handle 3 cases!
+                // 3. Case-I: If the left uncle is black, then mark both parents as black, and grandparent as red.
+                if (has_left_child(tree, grandparentNodeKey) && is_left_child_red(tree, grandparentNodeKey) ) {
+                    mark_children_black(tree, grandparentNodeKey);
+                    mark_red(tree, grandparentNodeKey);
+                    currentNodeKey = grandparentNodeKey;
+                } else {
+                    // 3. Case-II: Else if current node is the left child of the parent node, then right rotate the
+                    // current node and parent node, then assign parent to be the new current node.
+                    if (is_left_child(tree, currentNodeKey, parentNodeKey)) {
+                        rotate_right(tree, parentNodeKey, currentNodeKey);
+                        currentNodeKey = parentNodeKey;
+                    };
+                    // 3. Case-III: Set the color of the new parent of curent node as black, and grandparent as red;
+                    // then left rotate the grandparent.
+                    mark_parent_black(tree, currentNodeKey);
+                    mark_grandparent_red(tree, currentNodeKey);
+                    let parentNodeKey = parent_node_key(tree, currentNodeKey);
+                    let grandparentNodeKey = grandparent_node_key(tree, currentNodeKey);
+                    rotate_left(tree, grandparentNodeKey, parentNodeKey);
+                }
+            }
+        };
+
+        // 4. Lastly, set the root of the tree as BLACK.
+        let rootNodeKey = tree.rootNodeKey;
+        mark_black(tree, rootNodeKey);
+    }
+
+    ///
+    /// ROTATIONS
+    ///
+
+    fun rotate_right<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, childNodeKey: u128) {
+        // 0. Check parent/child preconditions!
+        {
+            let parentNode = node_with_key(tree, parentNodeKey);
+            let childNode = node_with_key(tree, childNodeKey);
+            assert!(parentNode.leftChildNodeKey == childNodeKey, INVALID_ROTATION_NODES);
+            assert!(childNode.parentNodeKey == parentNodeKey, INVALID_ROTATION_NODES);
+        };
+
+        // 1. If child has a right subtree, assign parent as the new parent of the right subtree of the child.
+        if (has_right_child(tree, childNodeKey)) {
+            let rightGrandchildNodeKey = node_with_key(tree, childNodeKey).rightChildNodeKey;
+            let rightGrandchildNode = node_with_key_mut(tree, rightGrandchildNodeKey);
+            // a. Fix the link upwards; the right substree points to the grandparent.
+            rightGrandchildNode.parentNodeKey = parentNodeKey;
+            // b. Parent node's left child now points to child's right substree.
+            let parent = node_with_key_mut(tree, parentNodeKey);
+            parent.leftChildNodeKey = rightGrandchildNodeKey;
+            parent.leftChildNodeKeyIsSet = true;
+        } else {
+            // If the child node doesn't have a left subtree, we must disconnect the parent from the child.
+            let parent = node_with_key_mut(tree, parentNodeKey);
+            parent.leftChildNodeKeyIsSet = false;
+        };
+
+        // 2. Swap the parents; the parent's parent is now the child, and the child's parent is the parent's old parent.
+        swap_parents(tree, parentNodeKey, childNodeKey);
+
+        // 3. Make the parent the new child of the child (as the right node).
+        let childNode = node_with_key_mut(tree, childNodeKey);
+        childNode.rightChildNodeKey = parentNodeKey;
+        childNode.rightChildNodeKeyIsSet = true;
+    }
+
+    // Good example to follow is here, https://www.programiz.com/dsa/red-black-tree
+    // We renaming x and y, with parent and child to make it a bit more concrete.
+    fun rotate_left<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, childNodeKey: u128) {
+        // 0. Check parent/child preconditions!
+        {
+            let parentNode = node_with_key(tree, parentNodeKey);
+            let childNode = node_with_key(tree, childNodeKey);
+            assert!(parentNode.rightChildNodeKey == childNodeKey, INVALID_ROTATION_NODES);
+            assert!(childNode.parentNodeKey == parentNodeKey, INVALID_ROTATION_NODES);
+        };
+
+        // 1. If child has a left subtree, assign parent as the new parent of the left subtree of the child.
+        if (has_left_child(tree, childNodeKey)) {
+            let leftGrandchildNodeKey = node_with_key(tree, childNodeKey).leftChildNodeKey;
+            let leftGrandchildNode = node_with_key_mut(tree, leftGrandchildNodeKey);
+            // a. Fix the link upwards.
+            leftGrandchildNode.parentNodeKey = parentNodeKey;
+            // b. Parent node's right child now points to child's left substree.
+            let parent = node_with_key_mut(tree, parentNodeKey);
+            parent.rightChildNodeKey = leftGrandchildNodeKey;
+            parent.rightChildNodeKeyIsSet = true;
+        } else {
+            // If the child node doesn't have a left subtree, we must disconnect the parent from the child.
+            let parent = node_with_key_mut(tree, parentNodeKey);
+            parent.rightChildNodeKeyIsSet = false;
+        };
+
+        // 2. Swap the parents; the parent's parent is now the child, and the child's parent is the parent's old parent.
+        swap_parents(tree, parentNodeKey, childNodeKey);
+
+        // 3. Make the parent the new child of the child (as the left node).
+        let childNode = node_with_key_mut(tree, childNodeKey);
+        childNode.leftChildNodeKey = parentNodeKey;
+        childNode.leftChildNodeKeyIsSet = true;
+    }
+
+    // Neither the parent's nor the child's children nodes will be effected; this is only swapping the
+    // parents of both the parent and the child.
+    fun swap_parents<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, childNodeKey: u128) {
+        // 1. The child takes over the parent's spot; either as root (if parent is root), or as the grandprent's
+        // left/right node, depending which direction the parent belonged.
+        if (is_root_node(tree, parentNodeKey)) {
+            // The parent is root! The child must be promoted to root!
+            set_root_node(tree, childNodeKey);
+        } else {
+            let grandparentNodeKey = node_with_key(tree, parentNodeKey).parentNodeKey;
+            let grandparentNode = node_with_key_mut(tree, grandparentNodeKey);
+            if (grandparentNode.leftChildNodeKeyIsSet && grandparentNode.leftChildNodeKey == parentNodeKey) {
+                grandparentNode.leftChildNodeKey = childNodeKey;
+            } else {
+                grandparentNode.rightChildNodeKey = childNodeKey;
+            };
+            let childNode = node_with_key_mut(tree, childNodeKey);
+            childNode.parentNodeKey = grandparentNodeKey;
+        };
+
+        // 2. The child becomes the parent of the parent. Note that we're just updating the parent key here,
+        // and that the child still needs to asign the parent either to its left or right child keys.
+        let parentNode = node_with_key_mut(tree, parentNodeKey);
+        parentNode.parentNodeKey = childNodeKey;
+        parentNode.parentNodeKeyIsSet = true;
+    }
+
+    //
+    // TEST SWAPS
+    //
 
     #[test(signer = @0x345)]
     fun test_swap_with_successor_test_root_immediate(signer: signer) {
@@ -1060,70 +1068,9 @@ module ferum_std::red_black_tree {
         move_to(&signer, tree)
     }
 
-    // Mostly, following the guidelines here: https://www.programiz.com/dsa/insertion-in-a-red-black-tree.
-    // It's much easier to follow the code from the above link, than the diagrams & annotations.
-    // Also note that in the tutorial's code, the diagram's and the code have the top level if statement flipped.
-    // If you're using, good visualization here: https://www.cs.usfca.edu/~galles/visualization/RedBlack.html.
-    fun fix_double_red<V: store + drop>(tree: &mut Tree<V>, currentNodeKey: u128) {
-        // 1. Continue while the parent of the current node is red! Keep in mind that root is always black, so
-        // this condition only applies to 3rd layers and below.
-        while (has_parent(tree, currentNodeKey) && is_parent_red(tree, currentNodeKey)) {
-            assert!(has_grandparent(tree, currentNodeKey), 0);
-            let parentNodeKey = parent_node_key(tree, currentNodeKey);
-            let grandparentNodeKey = parent_node_key(tree, parentNodeKey);
-            // 2. Split based on if the current parent is on the left or on the right side of the grandparent.
-            if (is_left_child(tree, parentNodeKey, grandparentNodeKey)) {
-                // 2. Case-I: If the color of the right child of grandaprent of current node is RED, set the color of
-                // both the children of grandparent as BLACK and the color of grandparent as RED.
-                if (has_right_child(tree, grandparentNodeKey) && is_right_child_red(tree, grandparentNodeKey) ) {
-                    mark_children_black(tree, grandparentNodeKey);
-                    mark_red(tree, grandparentNodeKey);
-                    currentNodeKey = grandparentNodeKey;
-                } else {
-                    // 2. Case-II: Else if current node is the right child of the parent node then, left rotate the
-                    // current node and parent node, then assign parent to be the new current node.
-                    if (is_right_child(tree, currentNodeKey, parentNodeKey)) {
-                        rotate_left(tree, parentNodeKey, currentNodeKey);
-                        currentNodeKey = parentNodeKey;
-                    };
-                    // 2. Case-III: Set the color of the new parent of curent node as black, and grandparent as red;
-                    // then right rotate the grandparent.
-                    mark_parent_black(tree, currentNodeKey);
-                    mark_grandparent_red(tree, currentNodeKey);
-                    let parentNodeKey = parent_node_key(tree, currentNodeKey);
-                    let grandparentNodeKey = grandparent_node_key(tree, currentNodeKey);
-                    rotate_right(tree, grandparentNodeKey, parentNodeKey);
-                }
-            } else {
-                // 3. The code below is the mirror version of the one above. For example, we check if the left uncle
-                // is black instead of the right uncle unlike we did above. Similarly, we still need to handle 3 cases!
-                // 3. Case-I: If the left uncle is black, then mark both parents as black, and grandparent as red.
-                if (has_left_child(tree, grandparentNodeKey) && is_left_child_red(tree, grandparentNodeKey) ) {
-                    mark_children_black(tree, grandparentNodeKey);
-                    mark_red(tree, grandparentNodeKey);
-                    currentNodeKey = grandparentNodeKey;
-                } else {
-                    // 3. Case-II: Else if current node is the left child of the parent node, then right rotate the
-                    // current node and parent node, then assign parent to be the new current node.
-                    if (is_left_child(tree, currentNodeKey, parentNodeKey)) {
-                        rotate_right(tree, parentNodeKey, currentNodeKey);
-                        currentNodeKey = parentNodeKey;
-                    };
-                    // 3. Case-III: Set the color of the new parent of curent node as black, and grandparent as red;
-                    // then left rotate the grandparent.
-                    mark_parent_black(tree, currentNodeKey);
-                    mark_grandparent_red(tree, currentNodeKey);
-                    let parentNodeKey = parent_node_key(tree, currentNodeKey);
-                    let grandparentNodeKey = grandparent_node_key(tree, currentNodeKey);
-                    rotate_left(tree, grandparentNodeKey, parentNodeKey);
-                }
-            }
-        };
-
-        // 4. Lastly, set the root of the tree as BLACK.
-        let rootNodeKey = tree.rootNodeKey;
-        mark_black(tree, rootNodeKey);
-    }
+    //
+    // TEST FIX DOUBLE RED
+    //
 
     #[test(signer = @0x345)]
     fun test_fix_double_red_insertion_case_1_1(signer: signer) {
@@ -1221,107 +1168,6 @@ module ferum_std::red_black_tree {
         assert_inorder_tree(&tree, b"0(B) 1 _ _: [0], 1(R) 21 0 10: [0], 10(B) 1 _ 15: [0], 15(R) 10 _ _: [0], 21(B) root 1 35: [0], 31(R) 35 _ _: [0], 35(B) 21 31 41: [0], 41(R) 35 _ _: [0]");
         assert_red_black_tree(&tree);
         move_to(&signer, tree)
-    }
-
-    ///
-    /// ROTATIONS
-    ///
-
-    fun rotate_right<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, childNodeKey: u128) {
-        // 0. Check parent/child preconditions!
-        {
-            let parentNode = node_with_key(tree, parentNodeKey);
-            let childNode = node_with_key(tree, childNodeKey);
-            assert!(parentNode.leftChildNodeKey == childNodeKey, INVALID_ROTATION_NODES);
-            assert!(childNode.parentNodeKey == parentNodeKey, INVALID_ROTATION_NODES);
-        };
-
-        // 1. If child has a right subtree, assign parent as the new parent of the right subtree of the child.
-        if (has_right_child(tree, childNodeKey)) {
-            let rightGrandchildNodeKey = node_with_key(tree, childNodeKey).rightChildNodeKey;
-            let rightGrandchildNode = node_with_key_mut(tree, rightGrandchildNodeKey);
-            // a. Fix the link upwards; the right substree points to the grandparent.
-            rightGrandchildNode.parentNodeKey = parentNodeKey;
-            // b. Parent node's left child now points to child's right substree.
-            let parent = node_with_key_mut(tree, parentNodeKey);
-            parent.leftChildNodeKey = rightGrandchildNodeKey;
-            parent.leftChildNodeKeyIsSet = true;
-        } else {
-            // If the child node doesn't have a left subtree, we must disconnect the parent from the child.
-            let parent = node_with_key_mut(tree, parentNodeKey);
-            parent.leftChildNodeKeyIsSet = false;
-        };
-
-        // 2. Swap the parents; the parent's parent is now the child, and the child's parent is the parent's old parent.
-        swap_parents(tree, parentNodeKey, childNodeKey);
-
-        // 3. Make the parent the new child of the child (as the right node).
-        let childNode = node_with_key_mut(tree, childNodeKey);
-        childNode.rightChildNodeKey = parentNodeKey;
-        childNode.rightChildNodeKeyIsSet = true;
-    }
-
-    // Good example to follow is here, https://www.programiz.com/dsa/red-black-tree
-    // We renaming x and y, with parent and child to make it a bit more concrete.
-    fun rotate_left<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, childNodeKey: u128) {
-        // 0. Check parent/child preconditions!
-        {
-            let parentNode = node_with_key(tree, parentNodeKey);
-            let childNode = node_with_key(tree, childNodeKey);
-            assert!(parentNode.rightChildNodeKey == childNodeKey, INVALID_ROTATION_NODES);
-            assert!(childNode.parentNodeKey == parentNodeKey, INVALID_ROTATION_NODES);
-        };
-
-        // 1. If child has a left subtree, assign parent as the new parent of the left subtree of the child.
-        if (has_left_child(tree, childNodeKey)) {
-            let leftGrandchildNodeKey = node_with_key(tree, childNodeKey).leftChildNodeKey;
-            let leftGrandchildNode = node_with_key_mut(tree, leftGrandchildNodeKey);
-            // a. Fix the link upwards.
-            leftGrandchildNode.parentNodeKey = parentNodeKey;
-            // b. Parent node's right child now points to child's left substree.
-            let parent = node_with_key_mut(tree, parentNodeKey);
-            parent.rightChildNodeKey = leftGrandchildNodeKey;
-            parent.rightChildNodeKeyIsSet = true;
-        } else {
-            // If the child node doesn't have a left subtree, we must disconnect the parent from the child.
-            let parent = node_with_key_mut(tree, parentNodeKey);
-            parent.rightChildNodeKeyIsSet = false;
-        };
-
-        // 2. Swap the parents; the parent's parent is now the child, and the child's parent is the parent's old parent.
-        swap_parents(tree, parentNodeKey, childNodeKey);
-
-        // 3. Make the parent the new child of the child (as the left node).
-        let childNode = node_with_key_mut(tree, childNodeKey);
-        childNode.leftChildNodeKey = parentNodeKey;
-        childNode.leftChildNodeKeyIsSet = true;
-    }
-
-    // Neither the parent's nor the child's children nodes will be effected; this is only swapping the
-    // parents of both the parent and the child.
-    fun swap_parents<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, childNodeKey: u128) {
-        // 1. The child takes over the parent's spot; either as root (if parent is root), or as the grandprent's
-        // left/right node, depending which direction the parent belonged.
-        if (is_root_node(tree, parentNodeKey)) {
-            // The parent is root! The child must be promoted to root!
-            set_root_node(tree, childNodeKey);
-        } else {
-            let grandparentNodeKey = node_with_key(tree, parentNodeKey).parentNodeKey;
-            let grandparentNode = node_with_key_mut(tree, grandparentNodeKey);
-            if (grandparentNode.leftChildNodeKeyIsSet && grandparentNode.leftChildNodeKey == parentNodeKey) {
-                grandparentNode.leftChildNodeKey = childNodeKey;
-            } else {
-                grandparentNode.rightChildNodeKey = childNodeKey;
-            };
-            let childNode = node_with_key_mut(tree, childNodeKey);
-            childNode.parentNodeKey = grandparentNodeKey;
-        };
-
-        // 2. The child becomes the parent of the parent. Note that we're just updating the parent key here,
-        // and that the child still needs to asign the parent either to its left or right child keys.
-        let parentNode = node_with_key_mut(tree, parentNodeKey);
-        parentNode.parentNodeKey = childNodeKey;
-        parentNode.parentNodeKeyIsSet = true;
     }
 
     //
@@ -1542,6 +1388,172 @@ module ferum_std::red_black_tree {
         let (key, value) = peek<u128>(&tree);
         assert!(key == 10, 0);
         assert!(*value == 100, 0);
+        move_to(&signer, tree)
+    }
+
+    //
+    // DELETION TESTS.
+    //
+
+    #[test(signer = @0x345)]
+    fun test_delete_root_leaf_node(signer: signer) {
+        // It's just a leaf root node.
+        let tree = test_tree(vector<u128>[10]);
+        assert_inorder_tree(&tree, b"10(B) root _ _: [0]");
+        assert!(length(&tree) == 1, 0);
+        delete(&mut tree, 10);
+        assert_inorder_tree(&tree, b"");
+        assert!(is_empty(&tree), 0);
+        assert!(length(&tree) == 0, 0);
+        assert_red_black_tree(&tree);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_root_node_with_red_left_successor(signer: signer) {
+        // It's just a leaf root node.
+        let tree = test_tree(vector<u128>[10, 5]);
+        assert_inorder_tree(&tree, b"5(R) 10 _ _: [0], 10(B) root 5 _: [0]");
+        assert!(length(&tree) == 2, 0);
+        delete(&mut tree, 10);
+        assert_inorder_tree(&tree, b"5(B) root _ _: [0]");
+        assert!(length(&tree) == 1, 0);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_root_node_with_red_right_successor(signer: signer) {
+        // It's just a leaf root node.
+        let tree = test_tree(vector<u128>[10, 15]);
+        assert_inorder_tree(&tree, b"10(B) root _ 15: [0], 15(R) 10 _ _: [0]");
+        assert!(length(&tree) == 2, 0);
+        delete(&mut tree, 10);
+        assert_inorder_tree(&tree, b"15(B) root _ _: [0]");
+        assert!(length(&tree) == 1, 0);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_root_node_with_two_red_successors(signer: signer) {
+        let tree = test_tree(vector<u128>[10, 5, 15]);
+        assert_inorder_tree(&tree, b"5(R) 10 _ _: [0], 10(B) root 5 15: [0], 15(R) 10 _ _: [0]");
+        assert!(length(&tree) == 3, 0);
+        delete(&mut tree, 10);
+        assert_inorder_tree(&tree, b"5(R) 15 _ _: [0], 15(B) root 5 _: [0]");
+        assert!(length(&tree) == 2, 0);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_black_node_with_two_children(signer: signer) {
+        let tree = test_tree(vector<u128>[1, 2, 3, 4, 5, 6, 7]);
+        assert_inorder_tree(&tree, b"1(B) 2 _ _: [0], 2(B) root 1 4: [0], 3(B) 4 _ _: [0], 4(R) 2 3 6: [0], 5(R) 6 _ _: [0], 6(B) 4 5 7: [0], 7(R) 6 _ _: [0]");
+        delete(&mut tree, 6);
+        assert_inorder_tree(&tree, b"1(B) 2 _ _: [0], 2(B) root 1 4: [0], 3(B) 4 _ _: [0], 4(R) 2 3 7: [0], 5(R) 7 _ _: [0], 7(B) 4 5 _: [0]");
+        delete(&mut tree, 4);
+        assert_inorder_tree(&tree, b"1(B) 2 _ _: [0], 2(B) root 1 5: [0], 3(B) 5 _ _: [0], 5(R) 2 3 7: [0], 7(B) 5 _ _: [0]");
+        delete(&mut tree, 1);
+        assert_inorder_tree(&tree, b"2(B) 5 _ 3: [0], 3(R) 2 _ _: [0], 5(B) root 2 7: [0], 7(B) 5 _ _: [0]");
+        delete(&mut tree, 7);
+        assert_inorder_tree(&tree, b"2(B) 3 _ _: [0], 3(B) root 2 5: [0], 5(B) 3 _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_red_leaf_nodes(signer: signer) {
+        // It's just a leaf node.
+        let tree = test_tree(vector<u128>[10, 5, 15]);
+        assert_inorder_tree(&tree, b"5(R) 10 _ _: [0], 10(B) root 5 15: [0], 15(R) 10 _ _: [0]");
+        delete(&mut tree, 5);
+        assert_inorder_tree(&tree, b"10(B) root _ 15: [0], 15(R) 10 _ _: [0]");
+        delete(&mut tree, 15);
+        assert_inorder_tree(&tree, b"10(B) root _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_black_node_with_red_left_child_sucessor(signer: signer) {
+        // The successor is red and is the left child of the node getting deleted.
+        let tree = test_tree(vector<u128>[10, 5, 15, 3, 7, 1]);
+        assert_inorder_tree(&tree, b"1(R) 3 _ _: [0], 3(B) 5 1 _: [0], 5(R) 10 3 7: [0], 7(B) 5 _ _: [0], 10(B) root 5 15: [0], 15(B) 10 _ _: [0]");
+        delete(&mut tree, 3);
+        assert_inorder_tree(&tree, b"1(B) 5 _ _: [0], 5(R) 10 1 7: [0], 7(B) 5 _ _: [0], 10(B) root 5 15: [0], 15(B) 10 _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_black_node_with_red_right_child_sucessor(signer: signer) {
+        // The successor is red and is the left child of the node getting deleted.
+        let tree = test_tree(vector<u128>[10, 5, 15, 7]);
+        assert_inorder_tree(&tree, b"5(B) 10 _ 7: [0], 7(R) 5 _ _: [0], 10(B) root 5 15: [0], 15(B) 10 _ _: [0]");
+        delete(&mut tree, 5);
+        assert_inorder_tree(&tree, b"7(B) 10 _ _: [0], 10(B) root 7 15: [0], 15(B) 10 _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_leaf_black_node_case_3_2_a_i(signer: signer) {
+        let tree = test_tree(vector<u128>[20, 15, 25, 10, 17]);
+        delete(&mut tree, 25);
+        assert_inorder_tree(&tree, b"10(B) 15 _ _: [0], 15(B) root 10 20: [0], 17(R) 20 _ _: [0], 20(B) 15 17 _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_leaf_black_node_case_3_2_a_ii(signer: signer) {
+        let tree = test_tree(vector<u128>[20, 15, 25, 17]);
+        delete(&mut tree, 25);
+        assert_inorder_tree(&tree, b"15(B) 17 _ _: [0], 17(B) root 15 20: [0], 20(B) 17 _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_leaf_black_node_case_3_2_a_iii(signer: signer) {
+        let tree = test_tree(vector<u128>[30, 20, 40, 35, 50]);
+        delete(&mut tree, 20);
+        assert_inorder_tree(&tree, b"30(B) 40 _ 35: [0], 35(R) 30 _ _: [0], 40(B) root 30 50: [0], 50(B) 40 _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_leaf_black_node_case_3_2_a_iv(signer: signer) {
+        let tree = test_tree(vector<u128>[30, 20, 40, 35]);
+        delete(&mut tree, 20);
+        assert_inorder_tree(&tree, b"30(B) 35 _ _: [0], 35(B) root 30 40: [0], 40(B) 35 _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_leaf_black_node_case_3_2_b_black_parent(signer: signer) {
+        let tree = test_tree(vector<u128>[20, 10, 25, 35]);
+        delete(&mut tree, 35);
+        delete(&mut tree, 10);
+        assert_inorder_tree(&tree, b"20(B) root _ 25: [0], 25(R) 20 _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_leaf_black_node_case_3_2_b_red_parent(signer: signer) {
+        let tree = test_tree(vector<u128>[20, 10, 25, 30, 23, 35]);
+        delete(&mut tree, 35);
+        delete(&mut tree, 30);
+        assert_inorder_tree(&tree, b"10(B) 20 _ _: [0], 20(B) root 10 25: [0], 23(R) 25 _ _: [0], 25(B) 20 23 _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_leaf_black_node_case_3_2_c_i(signer: signer) {
+        let tree = test_tree(vector<u128>[20, 10, 30, 1, 2, 3]);
+        delete(&mut tree, 30);
+        assert_inorder_tree(&tree, b"1(B) 2 _ _: [0], 2(B) root 1 10: [0], 3(B) 10 _ _: [0], 10(R) 2 3 20: [0], 20(B) 10 _ _: [0]");
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_delete_leaf_black_node_case_3_2_c_ii(signer: signer) {
+        let tree = test_tree(vector<u128>[20, 10, 30, 45, 50, 55]);
+        delete(&mut tree, 10);
+        assert_inorder_tree(&tree, b"20(B) 45 _ 30: [0], 30(R) 20 _ _: [0], 45(B) root 20 50: [0], 50(B) 45 _ 55: [0], 55(R) 50 _ _: [0]");
         move_to(&signer, tree)
     }
 
