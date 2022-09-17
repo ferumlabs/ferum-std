@@ -16,7 +16,7 @@ module ferum_std::red_black_tree {
     use std::vector;
     use aptos_std::table;
     #[test_only]
-    use ferum_std::test_utils::to_string_u128;
+    use ferum_std::test_utils::{to_string_u128, u128_from_string};
     #[test_only]
     use ferum_std::test_utils::to_string_vector;
     #[test_only]
@@ -1942,6 +1942,11 @@ module ferum_std::red_black_tree {
     //
 
     #[test_only]
+    fun s(bytes: vector<u8>): String {
+        string::utf8(bytes)
+    }
+
+    #[test_only]
     fun test_tree(nodeKeys: vector<u128>) : Tree<u128> {
         let tree = new<u128>();
         let i = 0;
@@ -1978,14 +1983,14 @@ module ferum_std::red_black_tree {
     fun inorder_string_with_tree(tree: &Tree<u128>): String {
         let inorderKeys = inorder(tree);
         let i = 0;
-        let buffer = &mut string::utf8(b"");
+        let buffer = &mut s(b"");
         let len = vector::length(&inorderKeys);
         while (i < len) {
             let key = *vector::borrow(&inorderKeys, i);
             string::append(buffer, string_with_node(tree, key));
             i = i + 1;
             if (i < len) {
-                string::append(buffer, string::utf8(b", "));
+                string::append(buffer, s(b", "));
             }
         };
         *buffer
@@ -1994,33 +1999,158 @@ module ferum_std::red_black_tree {
     #[test_only]
     fun string_with_node(tree: &Tree<u128>, key: u128): String {
         let node = get_node(tree, key);
-        let buffer = &mut string::utf8(b"");
+        let buffer = &mut s(b"");
         string::append(buffer, to_string_u128(key));
-        string::append(buffer, string::utf8(if (is_red(tree, key)) b"(R)" else b"(B)"));
+        string::append(buffer, s(if (is_red(tree, key)) b"(R)" else b"(B)"));
         if (node.parentNodeKeyIsSet) {
-            string::append(buffer, string::utf8(b" "));
+            string::append(buffer, s(b" "));
             string::append(buffer, to_string_u128(node.parentNodeKey));
         } else if (node.key == tree.rootNodeKey){
-            string::append(buffer, string::utf8(b" root"));
+            string::append(buffer, s(b" root"));
         } else {
-            string::append(buffer, string::utf8(b" ?"));
+            string::append(buffer, s(b" ?"));
         };
         if (node.leftChildNodeKeyIsSet) {
-            string::append(buffer, string::utf8(b" "));
+            string::append(buffer, s(b" "));
             string::append(buffer, to_string_u128(node.leftChildNodeKey));
         } else {
-            string::append(buffer, string::utf8(b" _"));
+            string::append(buffer, s(b" _"));
         };
         if (node.rightChildNodeKeyIsSet) {
-            string::append(buffer, string::utf8(b" "));
+            string::append(buffer, s(b" "));
             string::append(buffer, to_string_u128(node.rightChildNodeKey));
         } else {
-            string::append(buffer, string::utf8(b" _"));
+            string::append(buffer, s(b" _"));
         };
-        string::append(buffer, string::utf8(b": ["));
+        string::append(buffer, s(b": ["));
         string::append(buffer, to_string_vector(values_at(tree, key), b", "));
-        string::append(buffer, string::utf8(b"]"));
+        string::append(buffer, s(b"]"));
         *buffer
+    }
+
+    #[test_only]
+    fun parse_node(strRaw: vector<u8>, i: u64): (Node<u128>, u64) {
+        // Parses the node from the string starting at position i. Also returns the starting position for the next
+        // node. DOes not support parsing out node values.
+
+        let str = &s(strRaw);
+        let strLen = string::length(str);
+
+        // Get node key.
+        let buffer = &mut s(b"");
+        let char = string::sub_string(str, i, i+1);
+        while (char != s(b"(")) {
+            string::append(buffer, char);
+            i = i + 1;
+            char = string::sub_string(str, i, i+1);
+        };
+        let key = u128_from_string(buffer);
+
+        // Get node color.
+        let isRed = string::sub_string(str, i+1, i+2) == s(b"R");
+
+        i = i + 4;
+
+        // Get parent.
+        let buffer = &mut s(b"");
+        let char = string::sub_string(str, i, i+1);
+        while (char != s(b" ")) {
+            string::append(buffer, char);
+            i = i + 1;
+            char = string::sub_string(str, i, i+1);
+        };
+        let parentNodeKeyIsSet = true;
+        let parentNodeKey = 0u128;
+        assert!(*buffer != s(b"?"), 0);
+        if (*buffer == s(b"root")) {
+            parentNodeKeyIsSet = false;
+        } else {
+            parentNodeKey = u128_from_string(buffer);
+        };
+
+        i = i + 1;
+
+        // Get left child.
+        let buffer = &mut s(b"");
+        let char = string::sub_string(str, i, i+1);
+        while (char != s(b" ")) {
+            string::append(buffer, char);
+            i = i + 1;
+            char = string::sub_string(str, i, i+1);
+        };
+        let leftChildNodeKeyIsSet = true;
+        let leftChildNodeKey = 0u128;
+        if (*buffer == s(b"_")) {
+            leftChildNodeKeyIsSet = false;
+        } else {
+            leftChildNodeKey = u128_from_string(buffer);
+        };
+
+        i = i + 1;
+
+        // Get right child.
+        let buffer = &mut s(b"");
+        let char = string::sub_string(str, i, i+1);
+        while (char != s(b":")) {
+            string::append(buffer, char);
+            i = i + 1;
+            char = string::sub_string(str, i, i+1);
+        };
+        let rightChildNodeKeyIsSet = true;
+        let rightChildNodeKey = 0u128;
+        if (*buffer == s(b"_")) {
+            rightChildNodeKeyIsSet = false;
+        } else {
+            rightChildNodeKey = u128_from_string(buffer);
+        };
+
+        let char = string::sub_string(str, i, i+1);
+        while (i < strLen && char != s(b",")) {
+            char = string::sub_string(str, i, i+1);
+            i = i + 1;
+        };
+
+        if (i < strLen && string::sub_string(str, i, i+1) == s(b" ")) {
+            // Account for extra space, so the new position value we return is exactly at the start
+            // of the next node's info.
+            i = i + 1;
+        };
+
+        let node = Node<u128>{
+            key,
+            values: vector::empty<u128>(),
+
+            isRed,
+            parentNodeKey,
+            parentNodeKeyIsSet,
+            leftChildNodeKey,
+            leftChildNodeKeyIsSet,
+            rightChildNodeKey,
+            rightChildNodeKeyIsSet,
+        };
+        return (node, i)
+    }
+
+    #[test_only]
+    fun parse_tree(strRaw: vector<u8>): Tree<u128> {
+        // Note that this doesn't support parsing out node values.
+
+        let tree = new<u128>();
+        let str = s(strRaw);
+
+        let i = 0;
+        while (i < string::length(&str)) {
+            let (node, newPos) = parse_node(strRaw, i);
+
+            if (!node.parentNodeKeyIsSet) {
+                tree.rootNodeKey = node.key;
+            };
+            table::add(&mut tree.nodes, node.key, node);
+            tree.length = tree.length + 1;
+
+            i = newPos;
+        };
+        tree
     }
 
     #[test_only]
@@ -2115,6 +2245,70 @@ module ferum_std::red_black_tree {
     // TEST, TEST ONLY FUNCTION
     // http://www.quickmeme.com/img/8c/8cf15c38cc3f6dc84a05c63daa0eab142e25e38a36969d86b01123a3502371c7.jpg
     //
+
+    #[test(signer = @0x345)]
+    fun test_parse_tree(signer: &signer) {
+        let tree = parse_tree(b"0(B) 1 _ _: [], 1(B) root 0 3: [], 2(B) 3 _ _: [], 3(R) 1 2 4: [], 4(B) 3 _ _: []");
+        assert_inorder_tree(&tree, b"0(B) 1 _ _: [], 1(B) root 0 3: [], 2(B) 3 _ _: [], 3(R) 1 2 4: [], 4(B) 3 _ _: []");
+        move_to(signer, tree);
+    }
+
+    #[test]
+    fun test_parse_node_multi_char_children() {
+        let nodeStr = b"10(B) 1 100 30: [0]";
+        let (node, len) = parse_node(nodeStr, 0);
+        assert!(len == 19, 0);
+        let expected = Node<u128>{
+            key: 10,
+            isRed: false,
+            parentNodeKey: 1,
+            parentNodeKeyIsSet: true,
+            leftChildNodeKey: 100,
+            leftChildNodeKeyIsSet: true,
+            rightChildNodeKey: 30,
+            rightChildNodeKeyIsSet: true,
+            values: vector::empty(),
+        };
+        assert!(expected == node, 0);
+    }
+
+    #[test]
+    fun test_parse_node_no_children() {
+        let nodeStr = b"5(R) 21 _ _: [0]";
+        let (node, len) = parse_node(nodeStr, 0);
+        assert!(len == 16, 0);
+        let expected = Node<u128>{
+            key: 5,
+            isRed: true,
+            parentNodeKey: 21,
+            parentNodeKeyIsSet: true,
+            leftChildNodeKey: 0,
+            leftChildNodeKeyIsSet: false,
+            rightChildNodeKey: 0,
+            rightChildNodeKeyIsSet: false,
+            values: vector::empty(),
+        };
+        assert!(expected == node, 0);
+    }
+
+    #[test]
+    fun test_parse_node_root() {
+        let nodeStr = b"5(R) root 10 _: [0],";
+        let (node, len) = parse_node(nodeStr, 0);
+        assert!(len == 20, 0);
+        let expected = Node<u128>{
+            key: 5,
+            isRed: true,
+            parentNodeKey: 0,
+            parentNodeKeyIsSet: false,
+            leftChildNodeKey: 10,
+            leftChildNodeKeyIsSet: true,
+            rightChildNodeKey: 0,
+            rightChildNodeKeyIsSet: false,
+            values: vector::empty(),
+        };
+        assert!(expected == node, 0);
+    }
 
     #[test(signer = @0x345)]
     #[expected_failure(abort_code = 2)]

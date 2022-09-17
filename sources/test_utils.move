@@ -40,6 +40,55 @@ module ferum_std::test_utils {
         string::utf8(buffer)
     }
 
+    public fun u128_from_string(str: &String): u128 {
+        let i = 0;
+        let num = 0;
+        while (i < string::length(str)) {
+            num = num * 10;
+            let sub = string::sub_string(str, i, i + 1);
+            num = num + charToNum(*string::bytes(&sub));
+            i = i + 1;
+        };
+        num
+    }
+
+    fun charToNum(s: vector<u8>): u128 {
+        assert!(vector::length(&s) == 1, 0);
+        if (s == b"9") {
+            return 9
+        };
+        if (s == b"8") {
+            return 8
+        };
+        if (s == b"7") {
+            return 7
+        };
+        if (s == b"6") {
+            return 6
+        };
+        if (s == b"5") {
+            return 5
+        };
+        if (s == b"4") {
+            return 4
+        };
+        if (s == b"3") {
+            return 3
+        };
+        if (s == b"2") {
+            return 2
+        };
+        if (s == b"1") {
+            return 1
+        };
+        if (s == b"0") {
+            return 0
+        };
+
+        assert!(false, 0);
+        0
+    }
+
     #[test]
     fun test_compare_vector_with_empty_vector() {
         let v = &mut vector::empty<u128>();
