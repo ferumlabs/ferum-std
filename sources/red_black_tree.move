@@ -309,16 +309,45 @@ module ferum_std::red_black_tree {
         get_node_mut(tree, parentKey)
     }
 
-    fun unset_all<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
-        if (has_parent(tree, nodeKey)) {
-            unset_parent(tree, nodeKey);
+    fun unset_edges<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
+        let node = get_node_mut(tree, nodeKey);
+
+        let parentKey = node.parentNodeKey;
+        let parentSet = node.parentNodeKeyIsSet;
+        let leftChildKey = node.leftChildNodeKey;
+        let leftChildSet = node.leftChildNodeKeyIsSet;
+        let rightChildKey = node.rightChildNodeKey;
+        let rightChildSet = node.rightChildNodeKeyIsSet;
+
+        // Node mutations.
+        node.parentNodeKey = 0;
+        node.parentNodeKeyIsSet = false;
+        node.leftChildNodeKey = 0;
+        node.leftChildNodeKeyIsSet = false;
+        node.rightChildNodeKey = 0;
+        node.rightChildNodeKeyIsSet = false;
+
+        // Neighbour node mutations.
+        if (parentSet) {
+            let parent = get_node_mut(tree, parentKey);
+            if (parent.leftChildNodeKeyIsSet && nodeKey == parent.leftChildNodeKey) {
+                parent.leftChildNodeKeyIsSet = false;
+                parent.leftChildNodeKey = 0;
+            } else {
+                parent.rightChildNodeKeyIsSet = false;
+                parent.rightChildNodeKey = 0;
+            }
         };
-        if (has_right_child(tree, nodeKey)) {
-            unset_right_child(tree, nodeKey);
+        if (rightChildSet) {
+            let rightChild = get_node_mut(tree, rightChildKey);
+            rightChild.parentNodeKeyIsSet = false;
+            rightChild.parentNodeKey = 0;
         };
-        if (has_left_child(tree, nodeKey)) {
-            unset_left_child(tree, nodeKey);
-        }
+        if (leftChildSet) {
+            let leftChild = get_node_mut(tree, leftChildKey);
+            leftChild.parentNodeKeyIsSet = false;
+            leftChild.parentNodeKey = 0;
+        };
     }
 
     fun has_grandparent<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
@@ -364,31 +393,35 @@ module ferum_std::red_black_tree {
     }
 
     // Return the key of the node that would replace the node if it's deleted.
-    // For example, if it's a leaf node, there are not replacement nodes, so we return (false, 0).
-    fun successor_key<V: store + drop>(tree: &Tree<V>, nodeKey: u128): (bool, u128) { // (hasSuccessor, successorKey)
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        if (has_left_child(tree, nodeKey) && has_right_child(tree, nodeKey)) {
-            let nodeRightChildKey = right_child_key(tree, nodeKey);
-            (true, min_node_key_starting_at_node(tree, nodeRightChildKey))
-        } else if (has_left_child(tree, nodeKey)) {
-            (true, left_child_key(tree, nodeKey))
-        } else if (has_right_child(tree, nodeKey)) {
-            (true, right_child_key(tree, nodeKey))
+    fun get_successor<V: store + drop>(tree: &Tree<V>, nodeKey: u128): &Node<V> {
+        let node = get_node(tree, nodeKey);
+        assert!(node.leftChildNodeKeyIsSet || node.rightChildNodeKeyIsSet, 0);
+
+        if (node.rightChildNodeKeyIsSet) {
+            let rightChildKey = node.rightChildNodeKey;
+            get_min_node_start_at_node(tree, rightChildKey)
         } else {
-            (false, 0)
+            let leftChildKey = node.leftChildNodeKey;
+            get_max_node_start_at_node(tree, leftChildKey)
         }
     }
 
-    ///
-    /// MIN/MAX ACESSORS
-    ///
-
-    fun min_node_key_starting_at_node<V: store + drop>(tree: &Tree<V>, nodeKey: u128): u128 {
-        while(has_left_child(tree, nodeKey)) {
-            nodeKey = left_child_key(tree, nodeKey);
+    fun get_max_node_start_at_node<V: store + drop>(tree: &Tree<V>, nodeKey: u128): &Node<V> {
+        let node = get_node(tree, nodeKey);
+        while (node.rightChildNodeKeyIsSet) {
+            let rightChildKey = node.rightChildNodeKey;
+            node = get_node(tree, rightChildKey);
         };
-        nodeKey
+        node
+    }
+
+    fun get_min_node_start_at_node<V: store + drop>(tree: &Tree<V>, nodeKey: u128): &Node<V> {
+        let node = get_node(tree, nodeKey);
+        while (node.leftChildNodeKeyIsSet) {
+            let leftChildKey = node.leftChildNodeKey;
+            node = get_node(tree, leftChildKey);
+        };
+        node
     }
 
     ///
@@ -598,49 +631,62 @@ module ferum_std::red_black_tree {
     // DELETIONS
     //
 
-    // The code in GeeksForGeeks has many bugs, use the discussion board to see them.
-    // https://www.geeksforgeeks.org/red-black-tree-set-3-delete-2/
     public fun delete<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
-        if (has_left_child(tree, nodeKey) && has_right_child(tree, nodeKey)) { // Has 2 children!
-            // Scenario 1: We have two children. What we want to do is find a succesor which
-            // by definintion will have at most one child on right, then swap it out with the current node.
-            // After the swap, the deletion should be handled by one of the scenarios below.
+        if (!table::contains(&tree.nodes, nodeKey)) {
+            // Nothing to delete.
+            return
+        };
+
+        if (tree.length == 1) {
+            // Leaf node that is also the root. Just remove the node from the tree.
+            table::remove(&mut tree.nodes, nodeKey);
+            tree.length = 0;
+            tree.rootNodeKey = 0;
+            return
+        };
+
+        let node = get_node(tree, nodeKey);
+        if (!node.leftChildNodeKeyIsSet && !node.rightChildNodeKeyIsSet) {
+            // A leaf node. Can't be root because we already accounted for that case above.
+            remove_leaf_node(tree, nodeKey);
+        } else {
+            // Not a leaf node. First swap with successor. This makes the node a leaf node.
+            // So we can delete it in the same way as above.
+            let nodeKey = node.key;
             swap_with_successor(tree, nodeKey);
+
+            // It's not gauranteed that the node is a leaf node at this point because multiple successor swaps might
+            // be neccesary. We can just call delete again to cover that case.
             delete(tree, nodeKey);
-        } else if (has_left_child(tree, nodeKey) || has_right_child(tree, nodeKey)) { // Has at leat 1 child!
-            let (hasSuccssor, successorKey) = successor_key(tree, nodeKey);
-            assert!(hasSuccssor, INVALID_SUCCESSOR_OPERATION);
-            // Scenario 2: Handle a deletion of the root node, with only a single child.
-            // The root node is always black, so removing it subtracts -1 black from depth.
-            // We make it's successsor black, and even out the number.
-            if (is_root_node(tree, nodeKey)) {
-                let successorNode = get_node_mut(tree, successorKey);
-                successorNode.parentNodeKeyIsSet = false;
-                successorNode.isRed = false;
-                tree.rootNodeKey = successorNode.key;
-                drop_node(tree, nodeKey);
-            } else { // is leaf node!
-                // Scenario 3: We have one successor, and we're not the rood node. If either
-                // the deleted node or the replacement node is red, then we color the
-                // successor as black (red + black = black i.e. still 1 black). If both
-                // are black, then we start fixing a double black at the successor.
-                swap_parents(tree, nodeKey, successorKey);
-                if (is_red(tree, nodeKey) || is_red(tree, successorKey)) {
-                    let successorNode = get_node_mut(tree, successorKey);
-                    successorNode.isRed = false;
-                } else {
-                    fix_double_black(tree, successorKey);
-                };
-                drop_node(tree, nodeKey);
-            }
-        } else { // Leaf node!
-            // Scenario 4: Handle leaf node case. If it's the root, just delete the node. Otherwise, if
-            // the deleted node is black, there must be an imbalance; fix the double black!
-            if (is_black(tree, nodeKey)) {
-                // The deletion of a black leaf causes an imbalance! Fix the double black!
-                fix_double_black(tree, nodeKey);
-            };
-            drop_node(tree, nodeKey);
+        }
+    }
+
+    fun remove_leaf_node<V: store + drop>(tree: &mut Tree<V>, key: u128) {
+        let node = get_node(tree, key);
+        assert!(!node.leftChildNodeKeyIsSet, 0);
+        assert!(!node.rightChildNodeKeyIsSet, 0);
+        assert!(node.parentNodeKeyIsSet, 0);
+
+        // If the node is red, removing it will not have affected tree invariants.
+        // If the node is black, we need to account for the missing black. We do this
+        // by marking the node to be deleted as double black, which we then fix via `fix_double_black`.
+        if (!node.isRed) {
+            fix_double_black(tree, key);
+        };
+
+        // After fixing the double black, we can actually delete the node.
+
+        // Remove node from table.
+        let node = table::remove(&mut tree.nodes, key);
+        tree.length = tree.length - 1;
+
+        // Disconnect node from parent.
+        let parentKey = node.parentNodeKey;
+        let parent = get_node_mut(tree, parentKey);
+        if (parent.leftChildNodeKeyIsSet && parent.leftChildNodeKey == node.key) {
+            parent.leftChildNodeKeyIsSet = false
+        } else {
+            parent.rightChildNodeKeyIsSet = false
         };
     }
 
@@ -737,50 +783,71 @@ module ferum_std::red_black_tree {
     /// SUCCESSOR SWAPPING
     ///
 
-    const OUTGOING_SWAP_EDGE_DIRECTION_LEFT_CHILD: u8 = 1;
-    const OUTGOING_SWAP_EDGE_DIRECTION_RIGHT_CHILD: u8  = 2;
-    const OUTGOING_SWAP_EDGE_DIRECTION_PARENT_LEFT: u8  = 3;
-    const OUTGOING_SWAP_EDGE_DIRECTION_PARENT_RIGHT: u8  = 4;
+    const EDGE_LEFT_CHILD: u8 = 1;
+    const EDGE_RIGHT_CHILD: u8  = 2;
+    const EDGE_PARENT_LEFT: u8  = 3;
+    const EDGE_PARENT_RIGHT: u8  = 4;
 
-    struct OutgoingSwapEdge has copy, drop {
+    struct OutgoingEdge has copy, drop {
         target: u128,
         direction: u8,
     }
 
-    fun outgoing_edges<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128): vector<OutgoingSwapEdge> {
-        let outgoingEdges = &mut vector::empty<OutgoingSwapEdge>();
-        if (has_right_child(tree, nodeKey)) {
-            let rightChildNodeKey = right_child_key(tree, nodeKey);
-            vector::push_back(outgoingEdges, OutgoingSwapEdge { target: rightChildNodeKey, direction: OUTGOING_SWAP_EDGE_DIRECTION_RIGHT_CHILD });
+    fun get_outgoing_edges<V: store + drop>(tree: &Tree<V>, node: &Node<V>): vector<OutgoingEdge> {
+        let outgoingEdges = &mut vector::empty<OutgoingEdge>();
+        if (node.rightChildNodeKeyIsSet) {
+            vector::push_back(outgoingEdges, OutgoingEdge { target: node.rightChildNodeKey, direction: EDGE_RIGHT_CHILD });
         };
-        if (has_left_child(tree, nodeKey)) {
-            let leftChildNodeKey = left_child_key(tree, nodeKey);
-            vector::push_back(outgoingEdges, OutgoingSwapEdge { target: leftChildNodeKey, direction: OUTGOING_SWAP_EDGE_DIRECTION_LEFT_CHILD });
+        if (node.leftChildNodeKeyIsSet) {
+            vector::push_back(outgoingEdges, OutgoingEdge { target: node.leftChildNodeKey, direction: EDGE_LEFT_CHILD });
         };
-        if (has_parent(tree, nodeKey)) {
-            let parentNodeKey = parent_node_key(tree, nodeKey);
-            if (is_left_child_via_keys(tree, nodeKey, parentNodeKey)) {
-                vector::push_back(outgoingEdges, OutgoingSwapEdge { target: parentNodeKey, direction: OUTGOING_SWAP_EDGE_DIRECTION_PARENT_LEFT });
+        if (node.parentNodeKeyIsSet) {
+            let parent = get_node(tree, node.parentNodeKey);
+            if (is_left_child(node, parent)) {
+                vector::push_back(outgoingEdges, OutgoingEdge { target: parent.key, direction: EDGE_PARENT_LEFT });
             } else {
-                vector::push_back(outgoingEdges, OutgoingSwapEdge { target: parentNodeKey, direction: OUTGOING_SWAP_EDGE_DIRECTION_PARENT_RIGHT });
+                vector::push_back(outgoingEdges, OutgoingEdge { target: parent.key, direction: EDGE_PARENT_RIGHT });
             };
         };
         *outgoingEdges
     }
 
-    fun apply_outgoing_edges<V: store + drop>(tree: &mut Tree<V>, outgoingEdges: &vector<OutgoingSwapEdge>, nodeKey: u128, cycleBreakingNodeKey: u128) {
+    fun apply_edges<V: store + drop>(
+        tree: &mut Tree<V>,
+        edges: &vector<OutgoingEdge>,
+        nodeKey: u128,
+        originalNodeKey: u128,
+    ) {
         let i = 0;
-        while (i < vector::length(outgoingEdges)) {
-            let edge = vector::borrow(outgoingEdges, i);
-            let target =  if (edge.target == nodeKey) cycleBreakingNodeKey else edge.target;
-            if (edge.direction == OUTGOING_SWAP_EDGE_DIRECTION_LEFT_CHILD) {
-                set_left_child(tree, nodeKey, target);
-            } else if (edge.direction == OUTGOING_SWAP_EDGE_DIRECTION_RIGHT_CHILD) {
-                set_right_child(tree, nodeKey, target);
-            } else if (edge.direction == OUTGOING_SWAP_EDGE_DIRECTION_PARENT_LEFT) {
-                set_left_child(tree, target, nodeKey);
-            } else if (edge.direction == OUTGOING_SWAP_EDGE_DIRECTION_PARENT_RIGHT) {
-                set_right_child(tree, target, nodeKey);
+        while (i < vector::length(edges)) {
+            let edge = vector::borrow(edges, i);
+            let target = if (edge.target == nodeKey) originalNodeKey else edge.target;
+
+            let node = get_node_mut(tree, nodeKey);
+            if (edge.direction == EDGE_LEFT_CHILD) {
+                node.leftChildNodeKey = target;
+                node.leftChildNodeKeyIsSet = true;
+                let leftChild = table::borrow_mut(&mut tree.nodes, target);
+                leftChild.parentNodeKey = nodeKey;
+                leftChild.parentNodeKeyIsSet = true;
+            } else if (edge.direction == EDGE_RIGHT_CHILD) {
+                node.rightChildNodeKey = target;
+                node.rightChildNodeKeyIsSet = true;
+                let rightChild = table::borrow_mut(&mut tree.nodes, target);
+                rightChild.parentNodeKey = nodeKey;
+                rightChild.parentNodeKeyIsSet = true;
+            } else if (edge.direction == EDGE_PARENT_LEFT) {
+                node.parentNodeKey = target;
+                node.parentNodeKeyIsSet = true;
+                let parent = table::borrow_mut(&mut tree.nodes, target);
+                parent.leftChildNodeKey = nodeKey;
+                parent.leftChildNodeKeyIsSet = true;
+            } else if (edge.direction == EDGE_PARENT_RIGHT) {
+                node.parentNodeKey = target;
+                node.parentNodeKeyIsSet = true;
+                let parent = table::borrow_mut(&mut tree.nodes, target);
+                parent.rightChildNodeKey = nodeKey;
+                parent.rightChildNodeKeyIsSet = true;
             } else {
                 assert!(false, INVALID_OUTGOING_SWAP_EDGE_DIRECTION);
             };
@@ -788,36 +855,28 @@ module ferum_std::red_black_tree {
         }
     }
 
-    // Let's start with some interesting conditions for our successor swap:
-    //
-    //  Requirement 1. Node (N) must have two children!
-    //  Requirement 2. Successor (S) must not have a left child (otherwise, left child should have been successor).
-    //  Requirement 3. Node (N) may optionally be the root (R) i.e. N = R.
-    //  Requirement 4. Successor (S) may optionally be node's (N) right child (N.rightChild) i.e. S = N.rightChild.
-    //  Requirement 5. Successor (S) may optionally have a right child (S.rightChild).
-    //  Requirement 6. After the swap, the coloring of the tree must not change i.e. swap(N.color, S.color)!
-    //
-    // As you can see, there are a lot of edges involved; doing the swap manually, one edge at a time is both error
-    // prone and complex. Instead, here we opt to copy all the edges into a temprorary edge struct, then clearing all
-    // the existing edges on the node, then applying the swapped version of the edges. The successor swap only happens
-    // at most once for a node deletion, so this shouldn't affect performance.
-    //
-    //
+    // Swapping nodes is annoying because we need to update all references that other nodes are making to the nodes
+    // we are swapping.
     fun swap_with_successor<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
-        let (hasSuccesor, successorKey) = successor_key(tree, nodeKey);
-        assert!(has_left_child(tree, nodeKey) && has_right_child(tree, nodeKey), INVALID_SUCCESSOR_OPERATION);
-        assert!(hasSuccesor, INVALID_SUCCESSOR_OPERATION);
-        let nodeOutgoingEdges = outgoing_edges(tree, nodeKey);
-        let successorOutgoingEdges = outgoing_edges(tree, successorKey);
-        unset_all(tree, nodeKey);
-        unset_all(tree, successorKey);
-        apply_outgoing_edges(tree, &successorOutgoingEdges, nodeKey, successorKey);
-        apply_outgoing_edges(tree, &nodeOutgoingEdges, successorKey, nodeKey);
+        assert!(has_left_child(tree, nodeKey) || has_right_child(tree, nodeKey), INVALID_SUCCESSOR_OPERATION);
+        let successor = get_successor(tree, nodeKey);
+        let successorKey = successor.key;
+        let isSuccessorRed = successor.isRed;
+
+        let successorOutgoingEdges = get_outgoing_edges(tree, successor);
+        let node = get_node(tree, nodeKey);
+        let nodeOutgoingEdges = get_outgoing_edges(tree, node);
+
+        unset_edges(tree, nodeKey);
+        unset_edges(tree, successorKey);
+        apply_edges(tree, &successorOutgoingEdges, nodeKey, successorKey);
+        apply_edges(tree, &nodeOutgoingEdges, successorKey, nodeKey);
+
         if (tree.rootNodeKey == nodeKey) {
             tree.rootNodeKey = successorKey;
         };
         let isNodeRed = is_red(tree, nodeKey);
-        let isSuccessorRed = is_red(tree, successorKey);
+
         mark_color(tree, nodeKey, isSuccessorRed);
         mark_color(tree, successorKey, isNodeRed);
     }
