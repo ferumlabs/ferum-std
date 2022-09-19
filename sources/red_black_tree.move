@@ -1,14 +1,50 @@
-/// Good Reading
-///   https://www.geeksforgeeks.org/red-black-tree-set-3-delete-2/ but keep in mind that the code example has a few bus.
-///   https://gist.github.com/iEgit/e8574798870663d5fa1d159308a3ef62 red/black implementation via C++.
-///   https://www.programiz.com/dsa/red-black-tree but keep in mind that we don't have null nodes, which makes a lot of
-///     their code examples impossible to adopt with our code.
+/// ---
+/// description: ferum_std::red_black_tree
+/// ---
 ///
-/// Testing Tools
-///  Binary to ASCI Converter: https://www.duplichecker.com/ascii-to-text.php
-///  Red/Black Tree Visualizer: https://www.cs.usfca.edu/~galles/visualization/RedBlack.html (although they use left max
-///  sucessor replacement strategy on deletion and we use right min.
+/// Ferum's implementation of a [Red Black Tree](https://en.wikipedia.org/wiki/Red%E2%80%93black_tree).
+/// A red black tree is a self balancing binary tree which performs rotations tree manipulations to maintain a tree
+/// height of log(k), where k is the number of keys in the tree. Values with duplicate keys can be inserted into the
+/// tree - each value will stored in a linked list on each tree node. When a node no longer has any values, the node
+/// is removed (this is referred to as key deletion). The tree only supports u128 keys because (as of writing) move
+/// has no way to define comparators for generic types.
 ///
+/// The tree supports the following operations with the given time complexities:
+///
+/// | Operation                            | Time Complexity |
+/// |--------------------------------------|-----------------|
+/// | Deletion of value                    | O(1)            |
+/// | Deletion of key                      | O(log(n))       |
+/// | Insertion of value with new key      | O(log(n))       |
+/// | Insertion of value with existing key | O(1)            |
+/// | Retrieval of min/max key             | O(1)            |
+///
+/// # Quick Example
+///
+/// ```
+/// use ferum_std::red_black_tree::{Self, Tree};
+///
+/// // Create a tree with u128 values.
+/// let tree = red_black_tree::new<u128>();
+///
+/// // Insert
+/// red_black_tree::insert(&mut tree, 100, 50);
+/// red_black_tree::insert(&mut tree, 100, 40);
+/// red_black_tree::insert(&mut tree, 120, 10);
+/// red_black_tree::insert(&mut tree, 90, 5);
+///
+/// // Get min/max
+/// let min = red_black_tree::min_key(&tree);
+/// assert!(min == 90, 0);
+/// let max = red_black_tree::max_key(&tree);
+/// assert!(max == 90, 0);
+///
+/// // Delete values and keys.
+/// red_black_tree::delete_value(&mut tree, 100, 40);
+/// red_black_tree::delete_key(&mut tree, 90);
+/// let min = red_black_tree::min_key(&tree);
+/// assert!(min == 100, 0);
+/// ```
 module ferum_std::red_black_tree {
     use std::vector;
     use aptos_std::table;
@@ -23,19 +59,28 @@ module ferum_std::red_black_tree {
     // ERRORS
     //
 
+    /// Thrown when trying to perform an operation on the tree that requires the tree to be non empty.
     const TREE_IS_EMPTY: u64 = 0;
+    /// Thrown when trying to perform an operation for a specific key but the key is not set.
     const KEY_NOT_SET: u64 = 1;
     const NODE_NOT_FOUND: u64 = 2;
+    /// Thrown when trying to perform an invalid rotation on the tree.
     const INVALID_ROTATION_NODES: u64 = 3;
     const INVALID_KEY_ACCESS: u64 = 4;
-    const INVALID_SUCCESSOR_OPERATION: u64 = 5;
-    const INVALID_DELETION_OPERATION: u64 = 6;
-    const INVALID_OUTGOING_SWAP_EDGE_DIRECTION: u64 = 7;
-    const ONLY_LEAF_NODES_CAN_BE_ADDED: u64 = 8;
-    const INVALID_FIX_DOUBLE_RED_OPERATION: u64 = 9;
-    const INVALID_LEAF_NODE_HAS_LEFT_CHILD: u64 = 10;
-    const INVALID_LEAF_NODE_HAS_RIGHT_CHILD: u64 = 11;
-    const INVALID_LEAF_NODE_NO_PARENT: u64 = 12;
+    /// Thrown when trying to get the successor for a leaf node.
+    const SUCCESSOR_FOR_LEAF_NODE: u64 = 5;
+    /// Thrown when the edges being swapped doesn't define a valid edge direction.
+    const INVALID_OUTGOING_SWAP_EDGE_DIRECTION: u64 = 6;
+    /// Thrown when trying to add a non leaf node to the tree.
+    const ONLY_LEAF_NODES_CAN_BE_ADDED: u64 = 7;
+    /// Thrown when trying fix a double red but the tree doesn't follow the correct structure.
+    const INVALID_FIX_DOUBLE_RED_OPERATION: u64 = 8;
+    /// Thrown when trying to perform an operation on a leaf node but that node has a left child.
+    const INVALID_LEAF_NODE_HAS_LEFT_CHILD: u64 = 9;
+    /// Thrown when trying to perform an operation on a leaf node but that node has a right child.
+    const INVALID_LEAF_NODE_HAS_RIGHT_CHILD: u64 = 10;
+    /// Thrown when trying to perform an operation on a leaf node but that node has no parent.
+    const INVALID_LEAF_NODE_NO_PARENT: u64 = 11;
 
     //
     // STRUCTS
@@ -75,6 +120,7 @@ module ferum_std::red_black_tree {
     // PUBLIC CONSTRUCTORS
     //
 
+    /// Creates a new tree.
     public fun new<V: store + drop>(): Tree<V> {
         Tree<V> { keyCount: 0, valueCount: 0, rootNodeKey: 0, nodes: table::new<u128, Node<V>>()}
     }
@@ -83,10 +129,12 @@ module ferum_std::red_black_tree {
     // PUBLIC ACCESSORS
     //
 
+    /// Returns if the tree is empty.
     public fun is_empty<V: store + drop>(tree: &Tree<V>): bool {
         tree.keyCount == 0
     }
 
+    /// Returns how many keys are in the tree.
     public fun key_count<V: store + drop>(tree: &Tree<V>): u128 {
         tree.keyCount
     }
@@ -98,17 +146,20 @@ module ferum_std::red_black_tree {
         (tree.rootNodeKey, rootNodeFirstValue)
     }
 
+    /// Returns true if the tree has at least one value with the given key.
     public fun contains_key<V: store + drop>(tree: &Tree<V>, key: u128): bool {
         table::contains(&tree.nodes, key)
     }
 
-    public fun value_at<V: store + drop>(tree: &Tree<V>, key: u128): &V {
+    /// Returns the first value with the givem key.
+    public fun first_value_at<V: store + drop>(tree: &Tree<V>, key: u128): &V {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
         assert!(contains_key(tree, key), KEY_NOT_SET);
         let node = get_node(tree, key);
         vector::borrow<V>(&node.values, 0)
     }
 
+    /// Returns all the values with the given key.
     public fun values_at<V: store + drop>(tree: &Tree<V>, key: u128): &vector<V> {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
         assert!(contains_key(tree, key), KEY_NOT_SET);
@@ -814,7 +865,7 @@ module ferum_std::red_black_tree {
     // Swapping nodes is annoying because we need to update all references that other nodes are making to the nodes
     // we are swapping.
     fun swap_with_successor<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
-        assert!(has_left_child(tree, nodeKey) || has_right_child(tree, nodeKey), INVALID_SUCCESSOR_OPERATION);
+        assert!(has_left_child(tree, nodeKey) || has_right_child(tree, nodeKey), SUCCESSOR_FOR_LEAF_NODE);
         let successor = get_successor(tree, nodeKey);
         let successorKey = successor.key;
         let isSuccessorRed = successor.isRed;
@@ -1489,8 +1540,8 @@ module ferum_std::red_black_tree {
         assert!(key_count<u128>(&tree) == 2, 0);
         assert!(contains_key(&tree, 10), 0);
         assert!(contains_key(&tree, 8), 0);
-        assert!(*value_at(&tree, 8) == 10, 0);
-        assert!(*value_at(&tree, 10) == 100, 0);
+        assert!(*first_value_at(&tree, 8) == 10, 0);
+        assert!(*first_value_at(&tree, 10) == 100, 0);
         assert_inorder_tree(&tree, b"8(R) 10 _ _: [10], 10(B) root 8 _: [100]");
         assert_red_black_tree(&tree);
         move_to(&signer, tree)
@@ -1507,9 +1558,9 @@ module ferum_std::red_black_tree {
         assert!(contains_key(&tree, 10), 0);
         assert!(contains_key(&tree, 8), 0);
         assert!(contains_key(&tree, 6), 0);
-        assert!(*value_at(&tree, 10) == 100, 0);
-        assert!(*value_at(&tree, 8) == 10, 0);
-        assert!(*value_at(&tree, 6) == 1, 0);
+        assert!(*first_value_at(&tree, 10) == 100, 0);
+        assert!(*first_value_at(&tree, 8) == 10, 0);
+        assert!(*first_value_at(&tree, 6) == 1, 0);
         assert_inorder_tree(&tree, b"6(B) 8 _ _: [1], 8(B) root 6 10: [10], 10(B) 8 _ _: [100]");
         move_to(&signer, tree)
     }
@@ -1523,8 +1574,8 @@ module ferum_std::red_black_tree {
         assert!(key_count<u128>(&tree) == 2, 0);
         assert!(contains_key(&tree, 10), 0);
         assert!(contains_key(&tree, 12), 0);
-        assert!(*value_at(&tree, 10) == 100, 0);
-        assert!(*value_at(&tree, 12) == 1000, 0);
+        assert!(*first_value_at(&tree, 10) == 100, 0);
+        assert!(*first_value_at(&tree, 12) == 1000, 0);
         assert_inorder_tree(&tree, b"10(B) root _ 12: [100], 12(R) 10 _ _: [1000]");
         move_to(&signer, tree)
     }
@@ -1540,9 +1591,9 @@ module ferum_std::red_black_tree {
         assert!(contains_key(&tree, 10), 0);
         assert!(contains_key(&tree, 12), 0);
         assert!(contains_key(&tree, 14), 0);
-        assert!(*value_at(&tree, 10) == 100, 0);
-        assert!(*value_at(&tree, 12) == 1000, 0);
-        assert!(*value_at(&tree, 14) == 10000, 0);
+        assert!(*first_value_at(&tree, 10) == 100, 0);
+        assert!(*first_value_at(&tree, 12) == 1000, 0);
+        assert!(*first_value_at(&tree, 14) == 10000, 0);
         assert_inorder_tree(&tree, b"10(B) 12 _ _: [100], 12(B) root 10 14: [1000], 14(B) 12 _ _: [10000]");
         move_to(&signer, tree)
     }
