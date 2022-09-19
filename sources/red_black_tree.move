@@ -346,14 +346,14 @@ module ferum_std::red_black_tree {
 
         if (node.rightChildNodeKeyIsSet) {
             let rightChildKey = node.rightChildNodeKey;
-            get_min_node_start_at_node(tree, rightChildKey)
+            get_min_node_starting_at_node(tree, rightChildKey)
         } else {
             let leftChildKey = node.leftChildNodeKey;
-            get_max_node_start_at_node(tree, leftChildKey)
+            get_max_node_starting_at_node(tree, leftChildKey)
         }
     }
     
-    fun get_max_node_start_at_node<V: store + drop>(tree: &Tree<V>, nodeKey: u128): &Node<V> {
+    fun get_max_node_starting_at_node<V: store + drop>(tree: &Tree<V>, nodeKey: u128): &Node<V> {
         let node = get_node(tree, nodeKey);
         while (node.rightChildNodeKeyIsSet) {
             let rightChildKey = node.rightChildNodeKey;
@@ -362,7 +362,7 @@ module ferum_std::red_black_tree {
         node
     }
 
-    fun get_min_node_start_at_node<V: store + drop>(tree: &Tree<V>, nodeKey: u128): &Node<V> {
+    fun get_min_node_starting_at_node<V: store + drop>(tree: &Tree<V>, nodeKey: u128): &Node<V> {
         let node = get_node(tree, nodeKey);
         while (node.leftChildNodeKeyIsSet) {
             let leftChildKey = node.leftChildNodeKey;
