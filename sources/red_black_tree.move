@@ -22,6 +22,7 @@ module ferum_std::red_black_tree {
     //
     // ERRORS
     //
+
     const TREE_IS_EMPTY: u64 = 0;
     const KEY_NOT_SET: u64 = 1;
     const NODE_NOT_FOUND: u64 = 2;
@@ -295,7 +296,7 @@ module ferum_std::red_black_tree {
             get_max_node_start_at_node(tree, leftChildKey)
         }
     }
-
+    
     fun get_max_node_start_at_node<V: store + drop>(tree: &Tree<V>, nodeKey: u128): &Node<V> {
         let node = get_node(tree, nodeKey);
         while (node.rightChildNodeKeyIsSet) {
@@ -349,8 +350,6 @@ module ferum_std::red_black_tree {
                 node.leftChildNodeKey = key;
                 node.leftChildNodeKeyIsSet = true;
                 add_new_leaf_node(tree, key, newNode);
-
-                // In case any red/black invariants were broken, fix it up!
                 fix_double_red(tree, key)
             }
         } else if (key > node.key) {
@@ -363,8 +362,6 @@ module ferum_std::red_black_tree {
                 node.rightChildNodeKey = key;
                 node.rightChildNodeKeyIsSet = true;
                 add_new_leaf_node(tree, key, newNode);
-
-                // In case any red/black invariants were broken, fix it up!
                 fix_double_red(tree, key)
             }
         }
@@ -448,8 +445,6 @@ module ferum_std::red_black_tree {
         };
 
         // After fixing the double black, we can actually delete the node.
-
-        // Remove node from table.
         let node = table::remove(&mut tree.nodes, key);
         tree.keyCount = tree.keyCount - 1;
 
