@@ -1,6 +1,3 @@
-///
-///
-///
 /// Good Reading
 ///   https://www.geeksforgeeks.org/red-black-tree-set-3-delete-2/ but keep in mind that the code example has a few bus.
 ///   https://gist.github.com/iEgit/e8574798870663d5fa1d159308a3ef62 red/black implementation via C++.
@@ -70,17 +67,17 @@ module ferum_std::red_black_tree {
         isRed: bool,
     }
 
-    ///
-    /// PUBLIC CONSTRUCTORS
-    ///
+    //
+    // PUBLIC CONSTRUCTORS
+    //
 
     public fun new<V: store + drop>(): Tree<V> {
         Tree<V> { keyCount: 0, valueCount: 0, rootNodeKey: 0, nodes: table::new<u128, Node<V>>()}
     }
 
-    ///
-    /// PUBLIC ACCESSORS
-    ///
+    //
+    // PUBLIC ACCESSORS
+    //
 
     public fun is_empty<V: store + drop>(tree: &Tree<V>): bool {
         tree.keyCount == 0
@@ -115,9 +112,9 @@ module ferum_std::red_black_tree {
         &node.values
     }
 
-    ///
-    /// PRIVATE ACCESSORS
-    ///
+    //
+    // PRIVATE ACCESSORS
+    //
 
     fun root_node<V: store + drop>(tree: &Tree<V>): &Node<V> {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
@@ -134,17 +131,6 @@ module ferum_std::red_black_tree {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
         assert!(table::contains(&tree.nodes, key), NODE_NOT_FOUND);
         table::borrow(&tree.nodes, key)
-    }
-
-    fun is_left_child_via_keys<V: store + drop>(tree: &Tree<V>, childNodeKey: u128, parentNodeKey: u128): bool {
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, childNodeKey), NODE_NOT_FOUND);
-        assert!(table::contains(&tree.nodes, parentNodeKey), NODE_NOT_FOUND);
-        if (has_left_child(tree, parentNodeKey)) {
-            let parentNode = get_node(tree, parentNodeKey);
-            return parentNode.leftChildNodeKey == childNodeKey
-        };
-        return false
     }
 
     fun is_left_child<V: store + drop>(child: &Node<V>, parent: &Node<V>): bool {
@@ -166,17 +152,6 @@ module ferum_std::red_black_tree {
         get_node_mut(tree, leftChildNodeKey)
     }
 
-    fun is_right_child_via_keys<V: store + drop>(tree: &Tree<V>, childNodeKey: u128, parentNodeKey: u128): bool {
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, childNodeKey), NODE_NOT_FOUND);
-        assert!(table::contains(&tree.nodes, parentNodeKey), NODE_NOT_FOUND);
-        if (has_right_child(tree, parentNodeKey)) {
-            let parentNode = get_node(tree, parentNodeKey);
-            return parentNode.rightChildNodeKey == childNodeKey
-        };
-        return false
-    }
-
     fun is_right_child<V: store + drop>(child: &Node<V>, parent: &Node<V>): bool {
         parent.rightChildNodeKeyIsSet &&
             parent.rightChildNodeKey == child.key &&
@@ -196,26 +171,10 @@ module ferum_std::red_black_tree {
         get_node_mut(tree, rightChildNodeKey)
     }
 
-    fun right_child_key<V: store + drop>(tree: &Tree<V>, nodeKey: u128): u128 {
-        assert!(has_right_child(tree, nodeKey), INVALID_KEY_ACCESS);
-        get_node(tree, nodeKey).rightChildNodeKey
-    }
-
-    fun left_child_key<V: store + drop>(tree: &Tree<V>, nodeKey: u128): u128 {
-        assert!(has_left_child(tree, nodeKey), INVALID_KEY_ACCESS);
-        get_node(tree, nodeKey).leftChildNodeKey
-    }
-
     fun is_root_node<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
         assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
         tree.rootNodeKey == nodeKey
-    }
-
-    fun is_leaf_node<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        !has_left_child(tree, nodeKey) && !has_right_child(tree, nodeKey)
     }
 
     fun set_root_node<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
@@ -225,75 +184,11 @@ module ferum_std::red_black_tree {
         tree.rootNodeKey = nodeKey;
     }
 
-    fun set_left_child<V: store + drop>(tree: &mut Tree<V>, parentKey: u128, childKey: u128) {
-        assert!(table::contains(&tree.nodes, parentKey), NODE_NOT_FOUND);
-        assert!(table::contains(&tree.nodes, childKey), NODE_NOT_FOUND);
-        assert!(!has_left_child(tree, parentKey), INVALID_KEY_ACCESS);
-        let parentNode = get_node_mut(tree, parentKey);
-        parentNode.leftChildNodeKey = childKey;
-        parentNode.leftChildNodeKeyIsSet = true;
-        let childNode = get_node_mut(tree, childKey);
-        childNode.parentNodeKey = parentKey;
-        childNode.parentNodeKeyIsSet = true;
-    }
-
-    fun unset_left_child<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
-        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        if (has_left_child(tree, nodeKey)) {
-            let childNode = left_child_mut(tree, nodeKey);
-            childNode.parentNodeKeyIsSet = false;
-            let node = get_node_mut(tree, nodeKey);
-            node.leftChildNodeKeyIsSet = false;
-        };
-    }
-
-    fun set_right_child<V: store + drop>(tree: &mut Tree<V>, parentKey: u128, childKey: u128) {
-        assert!(table::contains(&tree.nodes, childKey), NODE_NOT_FOUND);
-        assert!(table::contains(&tree.nodes, parentKey), NODE_NOT_FOUND);
-        let parentNode = get_node_mut(tree, parentKey);
-        parentNode.rightChildNodeKey = childKey;
-        parentNode.rightChildNodeKeyIsSet = true;
-        let childNode = get_node_mut(tree, childKey);
-        childNode.parentNodeKey = parentKey;
-        childNode.parentNodeKeyIsSet = true;
-    }
-
-    fun unset_right_child<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
-        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        if (has_right_child(tree, nodeKey)) {
-            let childNode = right_child_mut(tree, nodeKey);
-            childNode.parentNodeKeyIsSet = false;
-            let node = get_node_mut(tree, nodeKey);
-            node.rightChildNodeKeyIsSet = false;
-        };
-    }
-
     fun has_parent<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
         assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
         let node = get_node(tree, nodeKey);
         node.parentNodeKeyIsSet
-    }
-
-    fun set_parent<V: store + drop>(tree: &mut Tree<V>, childKey: u128, parentKey: u128) {
-        assert!(table::contains(&tree.nodes, childKey), NODE_NOT_FOUND);
-        assert!(table::contains(&tree.nodes, parentKey), NODE_NOT_FOUND);
-        assert!(!has_parent(tree, childKey), INVALID_KEY_ACCESS);
-        let childNode = get_node_mut(tree, childKey);
-        childNode.parentNodeKey = parentKey;
-        childNode.parentNodeKeyIsSet = true;
-    }
-
-    fun unset_parent<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        assert!(has_parent(tree, nodeKey), INVALID_KEY_ACCESS);
-        let parentNodeKey = parent_node_key(tree, nodeKey);
-        if (is_left_child_via_keys(tree, nodeKey, parentNodeKey)) {
-            unset_left_child(tree, parentNodeKey);
-        } else {
-            unset_right_child(tree, parentNodeKey);
-        };
     }
 
     fun parent_node_key<V: store + drop>(tree: &Tree<V>, nodeKey: u128): u128 {
@@ -312,6 +207,12 @@ module ferum_std::red_black_tree {
         assert!(has_parent(tree, nodeKey), INVALID_KEY_ACCESS);
         let parentKey = parent_node_key(tree, nodeKey);
         get_node_mut(tree, parentKey)
+    }
+
+    fun mark_color<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128, isRed: bool) {
+        assert!(!is_empty(tree), TREE_IS_EMPTY);
+        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
+        get_node_mut(tree, nodeKey).isRed = isRed;
     }
 
     fun unset_edges<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
@@ -355,17 +256,6 @@ module ferum_std::red_black_tree {
         };
     }
 
-    fun has_grandparent<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        let node = get_node(tree, nodeKey);
-        if (node.parentNodeKeyIsSet) {
-            let parent = get_node(tree, node.parentNodeKey);
-            return parent.parentNodeKeyIsSet
-        };
-        return false
-    }
-
     fun has_sibling<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
         assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
@@ -375,19 +265,6 @@ module ferum_std::red_black_tree {
             return parent.leftChildNodeKeyIsSet && parent.rightChildNodeKeyIsSet
         };
         false
-    }
-
-    fun sibiling_node_key<V: store + drop>(tree: &Tree<V>, nodeKey: u128): u128 {
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        assert!(has_sibling(tree, nodeKey), INVALID_KEY_ACCESS);
-        let parentNodeKey = parent_node_key(tree, nodeKey);
-        let parent = get_node(tree, parentNodeKey);
-        if (parent.leftChildNodeKey == nodeKey) {
-            parent.rightChildNodeKey
-        } else {
-            parent.leftChildNodeKey
-        }
     }
 
     fun get_sibling<V: store + drop>(tree: &Tree<V>, key: u128): &Node<V> {
@@ -403,28 +280,6 @@ module ferum_std::red_black_tree {
             let siblingKey = parent.leftChildNodeKey;
             get_node(tree, siblingKey)
         }
-    }
-
-    fun get_sibling_mut<V: store + drop>(tree: &mut Tree<V>, key: u128): &mut Node<V> {
-        let parent = get_parent_mut(tree, key);
-
-        if (parent.leftChildNodeKeyIsSet && parent.leftChildNodeKey == key) {
-            // Sibling is the right child of the parent.
-            let rightChildKey = parent.rightChildNodeKey;
-            get_node_mut(tree, rightChildKey)
-        } else {
-            assert!(parent.rightChildNodeKeyIsSet && parent.rightChildNodeKey == key, 0);
-            // Sibling is the left child of the parent.
-            let leftChildKey = parent.leftChildNodeKey;
-            get_node_mut(tree, leftChildKey)
-        }
-    }
-
-    fun grandparent_node_key<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128): u128 {
-        assert!(has_grandparent(tree, nodeKey), INVALID_KEY_ACCESS);
-        let node = get_node(tree, nodeKey);
-        let parent = get_node(tree, node.parentNodeKey);
-        parent.parentNodeKey
     }
 
     // Return the key of the node that would replace the node if it's deleted.
@@ -457,124 +312,6 @@ module ferum_std::red_black_tree {
             node = get_node(tree, leftChildKey);
         };
         node
-    }
-
-    ///
-    /// COLOR ACCESSORS
-    ///
-
-    fun is_red<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        get_node(tree, nodeKey).isRed
-    }
-
-    fun is_black<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        !is_red(tree, nodeKey)
-    }
-
-    fun is_parent_red<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        assert!(has_parent(tree, nodeKey), INVALID_KEY_ACCESS);
-        let parentNodeKey = parent_node_key(tree, nodeKey);
-        let parentNode = get_node(tree, parentNodeKey);
-        parentNode.isRed
-    }
-
-    fun is_right_child_red<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        assert!(has_right_child(tree, nodeKey), INVALID_KEY_ACCESS);
-        let rightChildKey = right_child_key(tree, nodeKey);
-        is_red(tree, rightChildKey)
-    }
-
-    fun is_left_child_red<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        assert!(has_left_child(tree, nodeKey), INVALID_KEY_ACCESS);
-        let leftChildKey = left_child_key(tree, nodeKey);
-        is_red(tree, leftChildKey)
-    }
-
-    fun has_red_child<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        has_left_child(tree, nodeKey) && is_left_child_red(tree, nodeKey) ||
-            has_right_child(tree, nodeKey) && is_right_child_red(tree, nodeKey)
-    }
-
-    ///
-    /// COLOR MARKERS
-    ///
-
-    fun mark_red<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        get_node_mut(tree, nodeKey).isRed = true;
-    }
-
-    fun mark_black<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        get_node_mut(tree, nodeKey).isRed = false;
-    }
-
-    fun mark_color<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128, isRed: bool) {
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        get_node_mut(tree, nodeKey).isRed = isRed;
-    }
-
-    fun mark_children_black<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
-        mark_children_color(tree, nodeKey, false);
-    }
-
-    fun mark_children_red<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
-        mark_children_color(tree, nodeKey, true);
-    }
-
-    fun mark_children_color<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128, isRed: bool) {
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        if (has_left_child(tree, nodeKey)) {
-            let leftNode = left_child_mut(tree, nodeKey);
-            leftNode.isRed = isRed;
-        };
-        if (has_right_child(tree, nodeKey)) {
-            let rightNode = right_child_mut(tree, nodeKey);
-            rightNode.isRed = isRed;
-        };
-    }
-
-    fun mark_sibiling_red<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        assert!(has_sibling(tree, nodeKey), INVALID_KEY_ACCESS);
-        let sibilingNodeKey = sibiling_node_key(tree, nodeKey);
-        let sibilingNode = get_node_mut(tree, sibilingNodeKey);
-        sibilingNode.isRed = true
-    }
-
-    fun mark_parent_black<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        assert!(has_parent(tree, nodeKey), INVALID_KEY_ACCESS);
-        let parentNodeKey = parent_node_key(tree, nodeKey);
-        let parentNode = get_node_mut(tree, parentNodeKey);
-        parentNode.isRed = false;
-    }
-
-    fun mark_grandparent_red<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
-        assert!(!is_empty(tree), TREE_IS_EMPTY);
-        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        assert!(has_grandparent(tree, nodeKey), INVALID_KEY_ACCESS);
-        let grandparentNodeKey = grandparent_node_key(tree, nodeKey);
-        let grandparentNode = get_node_mut(tree, grandparentNodeKey);
-        grandparentNode.isRed = true;
     }
 
     //
@@ -672,10 +409,10 @@ module ferum_std::red_black_tree {
             return
         };
 
-        if (tree.length == 1) {
+        if (tree.keyCount == 1) {
             // Leaf node that is also the root. Just remove the node from the tree.
             table::remove(&mut tree.nodes, nodeKey);
-            tree.length = 0;
+            tree.keyCount = 0;
             tree.rootNodeKey = 0;
             return
         };
@@ -714,7 +451,7 @@ module ferum_std::red_black_tree {
 
         // Remove node from table.
         let node = table::remove(&mut tree.nodes, key);
-        tree.length = tree.length - 1;
+        tree.keyCount = tree.keyCount - 1;
 
         // Disconnect node from parent.
         let parentKey = node.parentNodeKey;
@@ -993,18 +730,9 @@ module ferum_std::red_black_tree {
         }
     }
 
-    fun drop_node<V: store + drop>(tree: &mut Tree<V>, key: u128) {
-        assert!(!is_empty(tree), INVALID_DELETION_OPERATION);
-        if (has_parent(tree, key)) {
-            unset_parent(tree, key);
-        };
-        table::remove(&mut tree.nodes, key);
-        tree.keyCount = tree.keyCount - 1
-    }
-
-    ///
-    /// SUCCESSOR SWAPPING
-    ///
+    //
+    // SUCCESSOR SWAPPING
+    //
 
     const EDGE_LEFT_CHILD: u8 = 1;
     const EDGE_RIGHT_CHILD: u8  = 2;
@@ -1088,6 +816,7 @@ module ferum_std::red_black_tree {
 
         let successorOutgoingEdges = get_outgoing_edges(tree, successor);
         let node = get_node(tree, nodeKey);
+        let isNodeRed = node.isRed;
         let nodeOutgoingEdges = get_outgoing_edges(tree, node);
 
         unset_edges(tree, nodeKey);
@@ -1098,7 +827,6 @@ module ferum_std::red_black_tree {
         if (tree.rootNodeKey == nodeKey) {
             tree.rootNodeKey = successorKey;
         };
-        let isNodeRed = is_red(tree, nodeKey);
 
         mark_color(tree, nodeKey, isSuccessorRed);
         mark_color(tree, successorKey, isNodeRed);
@@ -1418,33 +1146,6 @@ module ferum_std::red_black_tree {
         };
     }
 
-    // Neither the parent's nor the child's children nodes will be effected; this is only swapping the
-    // parents of both the parent and the child.
-    fun swap_parents<V: store + drop>(tree: &mut Tree<V>, parentNodeKey: u128, childNodeKey: u128) {
-        // 1. The child takes over the parent's spot; either as root (if parent is root), or as the grandprent's
-        // left/right node, depending which direction the parent belonged.
-        if (is_root_node(tree, parentNodeKey)) {
-            // The parent is root! The child must be promoted to root!
-            set_root_node(tree, childNodeKey);
-        } else {
-            let grandparentNodeKey = get_node(tree, parentNodeKey).parentNodeKey;
-            let grandparentNode = get_node_mut(tree, grandparentNodeKey);
-            if (grandparentNode.leftChildNodeKeyIsSet && grandparentNode.leftChildNodeKey == parentNodeKey) {
-                grandparentNode.leftChildNodeKey = childNodeKey;
-            } else {
-                grandparentNode.rightChildNodeKey = childNodeKey;
-            };
-            let childNode = get_node_mut(tree, childNodeKey);
-            childNode.parentNodeKey = grandparentNodeKey;
-        };
-
-        // 2. The child becomes the parent of the parent. Note that we're just updating the parent key here,
-        // and that the child still needs to asign the parent either to its left or right child keys.
-        let parentNode = get_node_mut(tree, parentNodeKey);
-        parentNode.parentNodeKey = childNodeKey;
-        parentNode.parentNodeKeyIsSet = true;
-    }
-
     //
     // TEST SWAPS
     //
@@ -1540,32 +1241,6 @@ module ferum_std::red_black_tree {
         assert_inorder_tree(&tree, b"5(R) 10 _ _: [0], 10(B) 14 5 _: [0], 14(B) root 10 16: [0], 15(B) 16 _ _: [0], 16(R) 14 15 17: [0], 17(B) 16 _ 18: [0], 18(R) 17 _ _: [0]");
         swap_with_successor(&mut tree, 16);
         assert_inorder_tree(&tree, b"5(R) 10 _ _: [0], 10(B) 14 5 _: [0], 14(B) root 10 17: [0], 15(B) 17 _ _: [0], 17(R) 14 15 16: [0], 16(B) 17 _ 18: [0], 18(R) 16 _ _: [0]");
-        move_to(&signer, tree)
-    }
-
-    #[test(signer = @0x345)]
-    fun test_swap_parents_with_root(signer: signer) {
-        let tree = new<u128>();
-        insert(&mut tree, 8, 0);
-        insert(&mut tree, 6, 0);
-        insert(&mut tree, 7, 0);
-        assert_red_black_tree(&tree);
-        assert_inorder_tree(&tree, b"6(B) 7 _ _: [0], 7(B) root 6 8: [0], 8(B) 7 _ _: [0]");
-        swap_parents(&mut tree, 7, 6);
-        assert!(is_root_node(&tree, 6), 0);
-        move_to(&signer, tree)
-    }
-
-    #[test(signer = @0x345)]
-    fun test_swap_parents(signer: signer) {
-        let tree = test_tree(vector<u128>[8, 6, 7, 9, 5]);
-        assert_inorder_tree(&tree, b"5(R) 6 _ _: [0], 6(B) 7 5 _: [0], 7(B) root 6 8: [0], 8(B) 7 _ 9: [0], 9(R) 8 _ _: [0]");
-        swap_parents(&mut tree, 8, 9);
-        swap_parents(&mut tree, 6, 5);
-        let rootNode = root_node(&tree);
-        assert!(rootNode.rightChildNodeKey == 9, 0);
-        assert!(rootNode.leftChildNodeKey == 5, 0);
-        assert!(is_root_node(&tree, 7), 0);
         move_to(&signer, tree)
     }
 
@@ -2212,6 +1887,25 @@ module ferum_std::red_black_tree {
     }
 
     #[test_only]
+    fun is_red<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
+        assert!(!is_empty(tree), TREE_IS_EMPTY);
+        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
+        get_node(tree, nodeKey).isRed
+    }
+
+    #[test_only]
+    fun right_child_key<V: store + drop>(tree: &Tree<V>, nodeKey: u128): u128 {
+        assert!(has_right_child(tree, nodeKey), INVALID_KEY_ACCESS);
+        get_node(tree, nodeKey).rightChildNodeKey
+    }
+
+    #[test_only]
+    fun left_child_key<V: store + drop>(tree: &Tree<V>, nodeKey: u128): u128 {
+        assert!(has_left_child(tree, nodeKey), INVALID_KEY_ACCESS);
+        get_node(tree, nodeKey).leftChildNodeKey
+    }
+
+    #[test_only]
     fun test_tree(nodeKeys: vector<u128>) : Tree<u128> {
         let tree = new<u128>();
         let i = 0;
@@ -2413,7 +2107,7 @@ module ferum_std::red_black_tree {
                 tree.rootNodeKey = node.key;
             };
             table::add(&mut tree.nodes, node.key, node);
-            tree.length = tree.length + 1;
+            tree.keyCount = tree.keyCount + 1;
 
             vector::push_back(&mut nodeKeys, nodeKey);
 
@@ -2646,7 +2340,7 @@ module ferum_std::red_black_tree {
     #[expected_failure(abort_code = 1)]
     fun test_assert_red_black_tree_with_red_root_node(signer: signer) {
         let tree = test_tree(vector<u128>[10]);
-        mark_red(&mut tree, 10);
+        mark_color(&mut tree, 10, true);
         assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
@@ -2655,7 +2349,7 @@ module ferum_std::red_black_tree {
     #[expected_failure(abort_code = 2)]
     fun test_assert_red_black_tree_with_two_adjacent_red_nodes(signer: signer) {
         let tree = test_tree(vector<u128>[10, 5, 15, 25, 35]);
-        mark_red(&mut tree, 25);
+        mark_color(&mut tree, 25, true);
         assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
@@ -2664,7 +2358,7 @@ module ferum_std::red_black_tree {
     #[expected_failure(abort_code = 3)]
     fun test_assert_red_black_tree_with_invalid_black_depth(signer: signer) {
         let tree = test_tree(vector<u128>[10, 5, 15, 25, 35, 40, 45]);
-        mark_black(&mut tree, 45);
+        mark_color(&mut tree, 45, false);
         assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
@@ -2673,7 +2367,7 @@ module ferum_std::red_black_tree {
     #[expected_failure(abort_code = 3)]
     fun test_assert_red_black_tree_with_invalid_black_depth_leaf_node(signer: signer) {
         let tree = test_tree(vector<u128>[10, 5, 15, 25, 35]);
-        mark_black(&mut tree, 35);
+        mark_color(&mut tree, 35, false);
         assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
