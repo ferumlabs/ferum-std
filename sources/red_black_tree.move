@@ -400,6 +400,13 @@ module ferum_std::red_black_tree {
     // DELETIONS
     //
 
+
+    public fun delete_value<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128, _value: V) {
+        assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
+    }
+
+    // The code in GeeksForGeeks has many bugs, use the discussion board to see them.
+    // https://www.geeksforgeeks.org/red-black-tree-set-3-delete-2/
     public fun delete<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
         if (!table::contains(&tree.nodes, nodeKey)) {
             // Nothing to delete.
