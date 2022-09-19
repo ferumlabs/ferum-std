@@ -303,7 +303,12 @@ module ferum_std::red_black_tree {
         node.parentNodeKey
     }
 
-    fun parent_mut<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128): &mut Node<V> {
+    fun get_parent<V: store + drop>(tree: &Tree<V>, key: u128): &Node<V> {
+        let parentKey = table::borrow(&tree.nodes, key).parentNodeKey;
+        table::borrow(&tree.nodes, parentKey)
+    }
+
+    fun get_parent_mut<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128): &mut Node<V> {
         assert!(has_parent(tree, nodeKey), INVALID_KEY_ACCESS);
         let parentKey = parent_node_key(tree, nodeKey);
         get_node_mut(tree, parentKey)
@@ -361,7 +366,7 @@ module ferum_std::red_black_tree {
         return false
     }
 
-    fun has_sibiling<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
+    fun has_sibling<V: store + drop>(tree: &Tree<V>, nodeKey: u128): bool {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
         assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
         if (has_parent(tree, nodeKey)) {
@@ -375,13 +380,43 @@ module ferum_std::red_black_tree {
     fun sibiling_node_key<V: store + drop>(tree: &Tree<V>, nodeKey: u128): u128 {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
         assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        assert!(has_sibiling(tree, nodeKey), INVALID_KEY_ACCESS);
+        assert!(has_sibling(tree, nodeKey), INVALID_KEY_ACCESS);
         let parentNodeKey = parent_node_key(tree, nodeKey);
         let parent = get_node(tree, parentNodeKey);
         if (parent.leftChildNodeKey == nodeKey) {
             parent.rightChildNodeKey
         } else {
             parent.leftChildNodeKey
+        }
+    }
+
+    fun get_sibling<V: store + drop>(tree: &Tree<V>, key: u128): &Node<V> {
+        let parent = get_parent(tree, key);
+
+        if (parent.leftChildNodeKeyIsSet && parent.leftChildNodeKey == key) {
+            // Sibling is the right child of the parent.
+            let siblingKey = parent.rightChildNodeKey;
+            get_node(tree, siblingKey)
+        } else {
+            assert!(parent.rightChildNodeKeyIsSet && parent.rightChildNodeKey == key, 0);
+            // Sibling is the left child of the parent.
+            let siblingKey = parent.leftChildNodeKey;
+            get_node(tree, siblingKey)
+        }
+    }
+
+    fun get_sibling_mut<V: store + drop>(tree: &mut Tree<V>, key: u128): &mut Node<V> {
+        let parent = get_parent_mut(tree, key);
+
+        if (parent.leftChildNodeKeyIsSet && parent.leftChildNodeKey == key) {
+            // Sibling is the right child of the parent.
+            let rightChildKey = parent.rightChildNodeKey;
+            get_node_mut(tree, rightChildKey)
+        } else {
+            assert!(parent.rightChildNodeKeyIsSet && parent.rightChildNodeKey == key, 0);
+            // Sibling is the left child of the parent.
+            let leftChildKey = parent.leftChildNodeKey;
+            get_node_mut(tree, leftChildKey)
         }
     }
 
@@ -518,7 +553,7 @@ module ferum_std::red_black_tree {
     fun mark_sibiling_red<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
         assert!(table::contains(&tree.nodes, nodeKey), NODE_NOT_FOUND);
-        assert!(has_sibiling(tree, nodeKey), INVALID_KEY_ACCESS);
+        assert!(has_sibling(tree, nodeKey), INVALID_KEY_ACCESS);
         let sibilingNodeKey = sibiling_node_key(tree, nodeKey);
         let sibilingNode = get_node_mut(tree, sibilingNodeKey);
         sibilingNode.isRed = true
@@ -649,16 +684,17 @@ module ferum_std::red_black_tree {
         if (!node.leftChildNodeKeyIsSet && !node.rightChildNodeKeyIsSet) {
             // A leaf node. Can't be root because we already accounted for that case above.
             remove_leaf_node(tree, nodeKey);
-        } else {
-            // Not a leaf node. First swap with successor. This makes the node a leaf node.
-            // So we can delete it in the same way as above.
-            let nodeKey = node.key;
-            swap_with_successor(tree, nodeKey);
+            return
+        };
 
-            // It's not gauranteed that the node is a leaf node at this point because multiple successor swaps might
-            // be neccesary. We can just call delete again to cover that case.
-            delete(tree, nodeKey);
-        }
+        // Not a leaf node. First swap with successor. This makes the node a leaf node.
+        // So we can delete it in the same way as above.
+        let nodeKey = node.key;
+        swap_with_successor(tree, nodeKey);
+
+        // It's not gauranteed that the node is a leaf node at this point because multiple successor swaps might
+        // be neccesary. We can just call delete again to cover that case.
+        delete(tree, nodeKey);
     }
 
     fun remove_leaf_node<V: store + drop>(tree: &mut Tree<V>, key: u128) {
@@ -690,83 +726,270 @@ module ferum_std::red_black_tree {
         };
     }
 
-    fun fix_double_black<V: store + drop>(tree: &mut Tree<V>, nodeKey: u128) {
-        if (is_root_node(tree, nodeKey)) {
-            return
-        };
-        let parentNodeKey = parent_node_key(tree, nodeKey);
-        if (has_sibiling(tree, nodeKey)) {
-            let sibilingNodeKey = sibiling_node_key(tree, nodeKey);
-            // 3.2 (c): If sibling is red, perform a rotation to move old sibling up, recolor the old sibling and
-            // parent. The new sibling is always black (See the below diagram). This mainly converts the tree to black
-            // sibling case (by rotation) and leads to case (a) or (b). This case can be divided in two subcases.
-            if (is_red(tree, sibilingNodeKey)) { // Sibiling is red!
-                mark_red(tree, parentNodeKey);
-                mark_black(tree, sibilingNodeKey);
-                if (is_left_child_via_keys(tree, sibilingNodeKey, parentNodeKey)) {
-                    rotate_right(tree, parentNodeKey, sibilingNodeKey);
-                } else {
-                    rotate_left(tree, parentNodeKey, sibilingNodeKey);
+    // When deleting, we potentially create double black node. The node that is doublle black is kept track of
+    // in this function (ie it's not stored on the node). To resolve duoble blacks, we perform
+    // transformations on the tree until the double black is removed.
+    //
+    // There are multiple cases and corresponding actions. Each case's set of actions either moves the
+    // double black node up the tree, transforms the tree into another case, or removes the double black.
+    //
+    // Legend:
+    //
+    // 2Blk = Double black node
+    // Blk = Black node
+    // Red = Red node
+    // Color = Variable for unknown color (either red or black)
+    // *Blk = Inferred black node due to tree invariants
+    // T# = Subtree, which could be empty
+    // PN = Parent node
+    // CN = Current node
+    // S = Sibling node
+    // SCA = Sibling child closest to CN, which could be nil
+    // SCB = Sibling child farthest from CN, which could be nil
+    //
+    // Cases:
+    //
+    // Case 0 (no sibling):
+    //  - Make PN Blk if it was Red. Otherwise, make it 2Blk
+    //
+    // Case 1 (sibling is red):
+    //  - Swap color of PN and S
+    //  - Rotate PN in direction of CN
+    //
+    //            PN (Color)                                  S (Color)
+    //           /  \                                        / \
+    //  (2Blk) CN    \                               (Red) PN   T4 (*Blk)
+    //        / \     \                                   / \
+    //       T1  T2    S (Red)       ------>     (2Blk) CN  T3 (*Blk)
+    //                / \                              /  \
+    //        (*Blk) T3  T4 (*Blk)                   T1   T2
+    //
+    // Case 2 (sibling and sibling's children are black):
+    //  - Make CN Blk
+    //  - Make S Red
+    //  - Make PN Blk if it was Red. Otherwise, make it 2Blk
+    //
+    //            PN (Color)                             PN (Blk if Color == Red, else 2Blk)
+    //           / \                                    / \
+    //  (2Blk) CN   \                           (Blk) CN   \
+    //        / \    \                               / \    \
+    //       T1  T2   S (Blk)       ------>         T1  T2   S (Red)
+    //               / \                                    / \
+    //       (Blk) SCA  \                           (Blk) SCA  \
+    //             / \   SCB (Blk)                        / \   SCB (Blk)
+    //           T3  T4  / \                            T3  T4  / \
+    //                 T5  T6                                 T5  T6
+    //
+    // Case 3 (sibling (S) is black, closest sibling's child (SCA) is Red):
+    //  - Swap S and SCA color
+    //  - Rotate S sway from CN
+    //
+    //            PN (Color)                             PN (Color)
+    //           / \                                    / \
+    //  (2Blk) CN   \                           (2Blk) CN  \
+    //        / \    \                                / \   \
+    //       T1  T2   S (Blk)       ------>         T1  T2  SCA (Blk)
+    //               /  \                                   / \
+    //      (Red) SCA    SCB (Blk)                 (*Blk) T3   \
+    //            / \     / \                                   S (Red)
+    //   (*Blk) T3   \   T5  T6                                / \
+    //                \                               (*Blk) T4  SCB (Blk)
+    //              T4 (*Blk)                                     / \
+    //                                                           T5  T6
+    //
+    // Case 4 (sibling (S) is black, closest sibling's child (SCA) is Blk):
+    //  - Swap color of PN and S
+    //  - Rotate PN towards CN
+    //  - Make CN Blk
+    //  - Make SCB Blk
+    //
+    //            PN (Color)                                S (Color)
+    //           / \                                       /  \
+    //  (2Blk) CN   \                                     /    SCB (Blk)
+    //        / \    \                                   /      /  \
+    //       T1  T2   S (Blk)       ------>       (Blk) PN    T5    T6 (*Blk)
+    //               / \                              /   \   (*Blk)
+    //       (Blk) SCA  \                            /     \
+    //             / \   SCB (Red)            (Blk) CN      SCA (Blk)
+    //           T3  T4  / \                       / \      / \
+    //                  /   \                    T1  T2    T3 T4
+    //          (*Blk) T5   T6 (*Blk)
+    //
+    fun fix_double_black<V: store + drop>(tree: &mut Tree<V>, key: u128) {
+        while (true) {
+            let node = get_node(tree, key);
+            if (!node.parentNodeKeyIsSet) {
+                // This is the root node. No need for any other action.
+                break
+            };
+
+            if (!has_sibling(tree, key)) {
+                // Case 0 (no sibling)
+                //  - Make PN Blk if it was Red. Otherwise, make it 2Blk
+                let parent = get_parent_mut(tree, key);
+                if (parent.isRed) {
+                    // If parent is red, there is no longer a double black so we can return.
+                    parent.isRed = false;
+                    return
                 };
-                fix_double_black(tree, nodeKey);
-            } else { // Sibiling is black!
-                // 3.2 (a): If sibling s is black and at least one of sibling's children is red, perform rotation(s).
-                // Let the red child of s be r. This case can be divided in four subcases depending upon positions of
-                // s and r.
-                if (has_red_child(tree, sibilingNodeKey)) { // At least one of sibiling's children is red!
-                    if (is_left_child_via_keys(tree, sibilingNodeKey, parentNodeKey)) { // Sibiling is the left child!
-                        if (has_left_child(tree, sibilingNodeKey) && is_left_child_red(tree, sibilingNodeKey)) {
-                            // 3.2.a (i) Left Left Case (s is left child of its parent and r is left child of s or both
-                            // children of s are red).
-                            let isSibilingRed = is_red(tree, sibilingNodeKey);
-                            let isParentRed = is_red(tree, parentNodeKey);
-                            let sibilingLeftChildNodeKey = left_child_key(tree, sibilingNodeKey);
-                            mark_color(tree, sibilingLeftChildNodeKey, isSibilingRed);
-                            mark_color(tree, sibilingNodeKey, isParentRed);
-                            rotate_right(tree, parentNodeKey, sibilingNodeKey);
-                        } else {
-                            // 3.2.a (ii): Left Right Case (s is left child of its parent and r is right child).
-                            let isParentRed = is_red(tree, parentNodeKey);
-                            let sibilingRightChildNodeKey = right_child_key(tree, sibilingNodeKey);
-                            mark_color(tree, sibilingRightChildNodeKey, isParentRed);
-                            rotate_left(tree, sibilingNodeKey, sibilingRightChildNodeKey);
-                            rotate_right(tree, parentNodeKey, sibilingRightChildNodeKey);
-                        }
-                    } else { // sibiling is the right child!
-                        if (has_right_child(tree, sibilingNodeKey) && is_right_child_red(tree, sibilingNodeKey)) {
-                            // 3.2.a (iii) Right Right Case (s is right child of its parent and r is right child of s
-                            // or both children of s are red).
-                            let isParentRed = is_red(tree, parentNodeKey);
-                            let isSibilingRed = is_red(tree, sibilingNodeKey);
-                            let sibilingRightChildKey = right_child_key(tree, sibilingNodeKey);
-                            mark_color(tree, sibilingRightChildKey, isSibilingRed);
-                            mark_color(tree, sibilingNodeKey, isParentRed);
-                            rotate_left(tree, parentNodeKey, sibilingNodeKey);
-                        } else {
-                            // 3.2.a (iv): Right Left Case (s is right child of its parent and r is left child of s).
-                            let isParentRed = is_red(tree, parentNodeKey);
-                            let sibilingLeftChildNodeKey = left_child_key(tree, sibilingNodeKey);
-                            mark_color(tree, sibilingLeftChildNodeKey, isParentRed);
-                            rotate_right(tree, sibilingNodeKey, sibilingLeftChildNodeKey);
-                            rotate_left(tree, parentNodeKey, sibilingLeftChildNodeKey);
-                        }
-                    };
-                    mark_black(tree, parentNodeKey);
-                } else { // Two black children!
-                    mark_red(tree, sibilingNodeKey);
-                    if (is_black(tree, parentNodeKey)) {
-                        fix_double_black(tree, parentNodeKey);
+                // Otherwise, parent is now the double black.
+                parent.isRed = false;
+                key = parent.key;
+                continue
+            } else {
+                // Sibling information.
+                let sibling = get_sibling(tree, key);
+                let siblingKey = sibling.key;
+                let siblingIsRed = sibling.isRed;
+                let siblingHasLeftChild = sibling.leftChildNodeKeyIsSet;
+                let siblingLeftChildKey = sibling.leftChildNodeKey;
+                let siblingHasRightChild = sibling.rightChildNodeKeyIsSet;
+                let siblingRightChildKey = sibling.rightChildNodeKey;
+
+                // Parent information.
+                let parent = get_parent(tree, key);
+                let parentKey = parent.key;
+                let parentIsRed = parent.isRed;
+                let node = get_node(tree, key);
+                let isLeftChild = is_left_child(node, parent);
+
+                let siblingLeftChildIsRed = siblingHasLeftChild && get_node(tree, siblingLeftChildKey).isRed;
+                let siblingRightChildIsRed = siblingHasRightChild && get_node(tree, siblingRightChildKey).isRed;
+
+                if (siblingIsRed) {
+                    // Case 1 (sibling is red):
+                    //  - Swap color of PN and S
+                    //  - Rotate PN in direction of CN
+                    //
+                    //            PN (Color)                                 S (Color)
+                    //           /  \                                       / \
+                    //  (2Blk) CN    \                              (Red) PN   T4 (*Blk)
+                    //        / \     \                                  / \
+                    //       T1  T2    S (Red)       ------>    (2Blk) CN  T3 (*Blk)
+                    //                / \                             /  \
+                    //        (*Blk) T3  T4 (*Blk)                  T1   T2
+                    //
+
+                    // Make PN red
+                    get_node_mut(tree, parentKey).isRed = true;
+
+                    // Make S color of parent.
+                    get_node_mut(tree, siblingKey).isRed = parentIsRed;
+
+                    // Rotate towards CN.
+                    if (isLeftChild) {
+                        rotate_left(tree, parentKey, siblingKey);
                     } else {
-                        mark_black(tree, parentNodeKey);
+                        rotate_right(tree, parentKey, siblingKey);
+                    };
+                    continue
+                } else if (!siblingRightChildIsRed && !siblingLeftChildIsRed) {
+                    // Case 2 (sibling and sibling's children are black):
+                    //  - Make CN Blk
+                    //  - Make S Red
+                    //  - Make PN Blk if it was Red. Otherwise, make it 2Blk
+                    //
+                    //            PN (Color)                           PN (Blk if Color == Red, else 2Blk)
+                    //           / \                                  / \
+                    //  (2Blk) CN   \                         (Blk) CN   \
+                    //        / \    \                             / \    \
+                    //       T1  T2   S (Blk)       ------>       T1  T2   S (Red)
+                    //               / \                                  / \
+                    //       (Blk) SCA  \                         (Blk) SCA  \
+                    //             / \   SCB (Blk)                      / \   SCB (Blk)
+                    //           T3  T4  / \                          T3  T4  / \
+                    //                 T5  T6                               T5  T6
+                    //
+
+                    // Make S red.
+                    get_node_mut(tree, siblingKey).isRed = true;
+
+                    // Make PN Blk if it was Red, otherwise mark it as 2Blk.
+                    let parent = get_parent_mut(tree, key);
+                    if (parent.isRed) {
+                        parent.isRed = false;
+                        // No more 2Blk!
+                        return
+                    } else {
+                        parent.isRed = false;
+                        key = parent.key;
+                        continue
                     }
+                } else if (isLeftChild && siblingLeftChildIsRed || !isLeftChild && siblingRightChildIsRed) {
+                    // Case 3 (sibling (S) is black, closest sibling's child (SCA) is Red):
+                    //  - Swap S and SCA color
+                    //  - Rotate S sway from CN
+                    //
+                    //            PN (Color)                            PN (Color)
+                    //           / \                                   / \
+                    //  (2Blk) CN   \                          (2Blk) CN  \
+                    //        / \    \                               / \   \
+                    //       T1  T2   S (Blk)       ------>        T1  T2  SCA (Blk)
+                    //               /  \                                  / \
+                    //      (Red) SCA    SCB (Blk)                (*Blk) T3   \
+                    //            / \     / \                                  S (Red)
+                    //   (*Blk) T3   \   T5  T6                               / \
+                    //                \                              (*Blk) T4  SCB (Blk)
+                    //              T4 (*Blk)                                    / \
+                    //                                                            T5  T6
+                    //
+
+                    if (isLeftChild) {
+                        // Swap colors.
+                        get_node_mut(tree, siblingKey).isRed = true;
+                        get_node_mut(tree, siblingLeftChildKey).isRed = false;
+
+                        get_node_mut(tree, siblingLeftChildKey).isRed = false;
+                        rotate_right(tree, siblingKey, siblingLeftChildKey);
+                    } else {
+                        // Swap colors.
+                        get_node_mut(tree, siblingKey).isRed = true;
+                        get_node_mut(tree, siblingRightChildKey).isRed = false;
+                        rotate_left(tree, siblingKey, siblingRightChildKey);
+                    };
+                    continue
+                } else if (isLeftChild && !siblingLeftChildIsRed || !isLeftChild && !siblingRightChildIsRed) {
+                    // Case 4 (sibling (S) is black, closest sibling's child (SCA) is Blk):
+                    //  - Swap color of PN and S
+                    //  - Rotate PN towards CN
+                    //  - Make CN Blk
+                    //  - Make SCB Blk
+                    //
+                    //            PN (Color)                               S (Color)
+                    //           / \                                      /  \
+                    //  (2Blk) CN   \                                    /    SCB (Blk)
+                    //        / \    \                                  /      /  \
+                    //       T1  T2   S (Blk)       ------>      (Blk) PN    T5    T6 (*Blk)
+                    //               / \                             /   \   (*Blk)
+                    //       (Blk) SCA  \                           /     \
+                    //             / \   SCB (Red)           (Blk) CN      SCA (Blk)
+                    //           T3  T4  / \                      / \      / \
+                    //                  /   \                   T1  T2    T3 T4
+                    //          (*Blk) T5   T6 (*Blk)
+                    //
+
+                    // Swap PN and S colors.
+                    get_node_mut(tree, siblingKey).isRed = parentIsRed;
+                    get_node_mut(tree, parentKey).isRed = false;
+
+                    // Rotate PN towards CN.
+                    if (isLeftChild) {
+                        rotate_left(tree, parentKey, siblingKey);
+                    } else {
+                        rotate_right(tree, parentKey, siblingKey);
+                    };
+
+                    // Make SCB Blk.
+                    if (isLeftChild && siblingHasRightChild) {
+                        get_node_mut(tree, siblingRightChildKey).isRed = false;
+                    } else if (!isLeftChild && siblingHasLeftChild) {
+                        get_node_mut(tree, siblingLeftChildKey).isRed = false;
+                    };
+
+                    // No more 2Blk!
+                    return
                 }
             }
-        } else {
-            // The current double black node doesn't have a sibiling, so we can't fix the problem here. Let's give it
-            // to our parents, like we always do. Remember, we have checked that we're not the root node, so the parent
-            // node must exist!
-            let parentNodeKey = parent_node_key(tree, nodeKey);
-            fix_double_black(tree, parentNodeKey);
         }
     }
 
@@ -1771,68 +1994,110 @@ module ferum_std::red_black_tree {
     }
 
     #[test(signer = @0x345)]
-    fun test_delete_leaf_black_node_case_3_2_a_i(signer: signer) {
-        let tree = test_tree(vector<u128>[20, 15, 25, 10, 17]);
-        delete(&mut tree, 25);
-        assert_inorder_tree(&tree, b"10(B) 15 _ _: [0], 15(B) root 10 20: [0], 17(R) 20 _ _: [0], 20(B) 15 17 _: [0]");
+    fun test_delete_leaf_black_node_red_leaf_node(signer: signer) {
+        //         10B
+        //       /    \
+        //      3B     15B
+        //     /  \    /  \
+        //    2B  5B  13B 18B
+        //       /
+        //      4R
+        //
+
+        // Node is red leaf node.
+        let tree = parse_tree(b"2(B) 3 _ _: [], 3(B) 10 2 5: [], 4(R) 5 _ _: [], 5(B) 3 4 _: [], 10(B) root 3 15: [], 13(B) 15 _ _: [], 15(B) 10 13 18: [], 18(B) 15 _ _: []");
+        assert_red_black_tree(&tree);
+        delete(&mut tree, 4);
+        assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
 
     #[test(signer = @0x345)]
-    fun test_delete_leaf_black_node_case_3_2_a_ii(signer: signer) {
-        let tree = test_tree(vector<u128>[20, 15, 25, 17]);
-        delete(&mut tree, 25);
-        assert_inorder_tree(&tree, b"15(B) 17 _ _: [0], 17(B) root 15 20: [0], 20(B) 17 _ _: [0]");
+    fun test_delete_leaf_black_node_case_0(signer: signer) {
+        //         10B
+        //       /    \
+        //      3B     15B
+        //     /       /  \
+        //    2B      13B 18B
+        //
+
+        // Black node with no siblings.
+        let tree = parse_tree(b"2(B) 3 _ _: [], 3(B) 10 2 _: [], 10(B) root 3 15: [], 13(B) 15 _ _: [], 15(B) 10 13 18: [], 18(B) 15 _ _: []");
+        assert_red_black_tree(&tree);
+        delete(&mut tree, 2);
+        assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
 
     #[test(signer = @0x345)]
-    fun test_delete_leaf_black_node_case_3_2_a_iii(signer: signer) {
-        let tree = test_tree(vector<u128>[30, 20, 40, 35, 50]);
-        delete(&mut tree, 20);
-        assert_red_black_tree(&tree); // TODO: going to redo these with new case mapping.
+    fun test_delete_leaf_black_node_case_1(signer: signer) {
+        //         10B
+        //       /    \
+        //      3B     15B
+        //     / \     / \
+        //    2B 6R  13B 18B
+        //       /
+        //      4B
+        //
+
+        // Sibling is red.
+        let tree = parse_tree(b"2(B) 3 _ _: [], 3(B) 10 2 6: [], 4(B) 6 _ _: [], 6(R) 3 4 _: [], 10(B) root 3 15: [], 13(B) 15 _ _: [], 15(B) 10 13 18: [], 18(B) 15 _ _: []");
+        assert_red_black_tree(&tree);
+        delete(&mut tree, 2);
+        assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
 
     #[test(signer = @0x345)]
-    fun test_delete_leaf_black_node_case_3_2_a_iv(signer: signer) {
-        let tree = test_tree(vector<u128>[30, 20, 40, 35]);
-        delete(&mut tree, 20);
-        assert_inorder_tree(&tree, b"30(B) 35 _ _: [0], 35(B) root 30 40: [0], 40(B) 35 _ _: [0]");
+    fun test_delete_leaf_black_node_case_2(signer: signer) {
+        //        10B
+        //       /  \
+        //      3B   15B
+        //     / \   / \
+        //    2B 5B 13B 18B
+
+        // Sibling is black and has black children.
+        let tree = parse_tree(b"2(B) 3 _ _: [], 3(B) 10 2 5: [], 5(B) 3 _ _: [], 10(B) root 3 15: [], 13(B) 15 _ _: [], 15(B) 10 13 18: [], 18(B) 15 _ _: []");
+        delete(&mut tree, 2);
+        assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
 
     #[test(signer = @0x345)]
-    fun test_delete_leaf_black_node_case_3_2_b_black_parent(signer: signer) {
-        let tree = test_tree(vector<u128>[20, 10, 25, 35]);
-        delete(&mut tree, 35);
-        delete(&mut tree, 10);
-        assert_inorder_tree(&tree, b"20(B) root _ 25: [0], 25(R) 20 _ _: [0]");
+    fun test_delete_leaf_black_node_case_3(signer: signer) {
+        //         10B
+        //       /    \
+        //      3B     15B
+        //     /  \    /  \
+        //    2B  5B  13B 18B
+        //       /
+        //      4R
+        //
+
+        // Sibling is black and sibling's closest child is red.
+        let tree = parse_tree(b"2(B) 3 _ _: [], 3(B) 10 2 5: [], 4(R) 5 _ _: [], 5(B) 3 4 _: [], 10(B) root 3 15: [], 13(B) 15 _ _: [], 15(B) 10 13 18: [], 18(B) 15 _ _: []");
+        assert_red_black_tree(&tree);
+        delete(&mut tree, 2);
+        assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
 
     #[test(signer = @0x345)]
-    fun test_delete_leaf_black_node_case_3_2_b_red_parent(signer: signer) {
-        let tree = test_tree(vector<u128>[20, 10, 25, 30, 23, 35]);
-        delete(&mut tree, 35);
-        delete(&mut tree, 30);
-        assert_inorder_tree(&tree, b"10(B) 20 _ _: [0], 20(B) root 10 25: [0], 23(R) 25 _ _: [0], 25(B) 20 23 _: [0]");
-        move_to(&signer, tree)
-    }
+    fun test_delete_leaf_black_node_case_4(signer: signer) {
+        //        10B
+        //       /   \
+        //      3B    15B
+        //     / \    / \
+        //    2B  6B 13B 18B
+        //                 \
+        //                  20R
+        //
 
-    #[test(signer = @0x345)]
-    fun test_delete_leaf_black_node_case_3_2_c_i(signer: signer) {
-        let tree = test_tree(vector<u128>[20, 10, 30, 1, 2, 3]);
-        delete(&mut tree, 30);
-        assert_red_black_tree(&tree); // TODO: going to redo these with new case mapping.
-        move_to(&signer, tree)
-    }
-
-    #[test(signer = @0x345)]
-    fun test_delete_leaf_black_node_case_3_2_c_ii(signer: signer) {
-        let tree = test_tree(vector<u128>[20, 10, 30, 45, 50, 55]);
-        delete(&mut tree, 10);
-        assert_red_black_tree(&tree); // TODO: going to redo these with new case mapping.
+        // Sibling is black and sibling's closest child is black.
+        let tree = parse_tree(b"2(B) 3 _ _: [], 3(B) 10 2 6: [], 6(B) 3 _ _: [], 10(B) root 3 15: [], 13(B) 15 _ _: [], 15(B) 10 13 18: [], 18(B) 15 _ 20: [], 20(R) 18 _ _: []");
+        assert_red_black_tree(&tree);
+        delete(&mut tree, 13);
+        assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
 
@@ -2138,18 +2403,48 @@ module ferum_std::red_black_tree {
         let tree = new<u128>();
         let str = s(strRaw);
 
+        let nodeKeys = vector::empty<u128>();
+
         let i = 0;
         while (i < string::length(&str)) {
             let (node, newPos) = parse_node(strRaw, i);
-
+            let nodeKey = node.key;
             if (!node.parentNodeKeyIsSet) {
                 tree.rootNodeKey = node.key;
             };
             table::add(&mut tree.nodes, node.key, node);
             tree.length = tree.length + 1;
 
+            vector::push_back(&mut nodeKeys, nodeKey);
+
             i = newPos;
         };
+        i = 0;
+        while (i < vector::length(&nodeKeys)) {
+            let node = table::borrow(&tree.nodes, *vector::borrow(&nodeKeys, i));
+            if (node.parentNodeKeyIsSet) {
+                assert!(table::contains(&tree.nodes, node.parentNodeKey), 0);
+                let parent = table::borrow(&tree.nodes, node.parentNodeKey);
+                let leftChild = parent.leftChildNodeKeyIsSet && parent.leftChildNodeKey == node.key;
+                let rightChild = parent.rightChildNodeKeyIsSet && parent.rightChildNodeKey == node.key;
+                assert!(leftChild || rightChild, 0);
+            };
+
+            if (node.leftChildNodeKeyIsSet) {
+                assert!(table::contains(&tree.nodes, node.leftChildNodeKey), 0);
+                let leftChild = table::borrow(&tree.nodes, node.leftChildNodeKey);
+                assert!(leftChild.parentNodeKeyIsSet && leftChild.parentNodeKey == node.key, 0);
+            };
+
+            if (node.rightChildNodeKeyIsSet) {
+                assert!(table::contains(&tree.nodes, node.rightChildNodeKey), 0);
+                let rightChild = table::borrow(&tree.nodes, node.rightChildNodeKey);
+                assert!(rightChild.parentNodeKeyIsSet && rightChild.parentNodeKey == node.key, 0);
+            };
+
+            i = i + 1;
+        };
+
         tree
     }
 
@@ -2250,6 +2545,13 @@ module ferum_std::red_black_tree {
     fun test_parse_tree(signer: &signer) {
         let tree = parse_tree(b"0(B) 1 _ _: [], 1(B) root 0 3: [], 2(B) 3 _ _: [], 3(R) 1 2 4: [], 4(B) 3 _ _: []");
         assert_inorder_tree(&tree, b"0(B) 1 _ _: [], 1(B) root 0 3: [], 2(B) 3 _ _: [], 3(R) 1 2 4: [], 4(B) 3 _ _: []");
+        move_to(signer, tree);
+    }
+
+    #[test(signer = @0x345)]
+    fun test_parse_tree_2(signer: &signer) {
+        let tree = parse_tree(b"1(R) 3 _ _: [], 3(B) 10 1 _: [], 10(B) root 3 15: [], 13(B) 15 _ _: [], 15(R) 10 13 _: []");
+        assert_inorder_tree(&tree, b"1(R) 3 _ _: [], 3(B) 10 1 _: [], 10(B) root 3 15: [], 13(B) 15 _ _: [], 15(R) 10 13 _: []");
         move_to(signer, tree);
     }
 
