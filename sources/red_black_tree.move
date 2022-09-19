@@ -34,11 +34,14 @@ module ferum_std::red_black_tree {
     const INVALID_DELETION_OPERATION: u64 = 6;
     const INVALID_OUTGOING_SWAP_EDGE_DIRECTION: u64 = 7;
 
-    ///
-    /// STRUCTS
-    ///
+    //
+    // STRUCTS
+    //
+
     struct Tree<V: store> has key {
-        length: u128,
+        // Since the tree supports duplicate values, key count is different than value count.
+        // Also, since the way we implement R/B doesn't have null leaf nodes, key count equals node count.
+        keyCount: u128,
         rootNodeKey: u128,
         nodes: table::Table<u128, Node<V>>
     }
@@ -69,7 +72,7 @@ module ferum_std::red_black_tree {
     ///
 
     public fun new<V: store + drop>(): Tree<V> {
-        Tree<V> {length: 0, rootNodeKey: 0, nodes: table::new<u128, Node<V>>()}
+        Tree<V> { keyCount: 0, rootNodeKey: 0, nodes: table::new<u128, Node<V>>()}
     }
 
     ///
@@ -77,11 +80,11 @@ module ferum_std::red_black_tree {
     ///
 
     public fun is_empty<V: store + drop>(tree: &Tree<V>): bool {
-        tree.length == 0
+        tree.keyCount == 0
     }
 
-    public fun length<V: store + drop>(tree: &Tree<V>): u128 {
-        tree.length
+    public fun keyCount<V: store + drop>(tree: &Tree<V>): u128 {
+        tree.keyCount
     }
 
     public fun peek<V: store + drop>(tree: &Tree<V>): (u128, &V) {
@@ -499,7 +502,7 @@ module ferum_std::red_black_tree {
             let rootNode = leaf_node<V>(key, value);
             // Root node is always black!
             rootNode.isRed = false;
-            tree.length = tree.length + 1;
+            tree.keyCount = tree.keyCount + 1;
             tree.rootNodeKey = key;
             table::add(&mut tree.nodes, key, rootNode);
         } else {
@@ -514,7 +517,7 @@ module ferum_std::red_black_tree {
     fun insert_starting_at_node<V: store + drop>(tree: &mut Tree<V>, key: u128, value: V, nodeKey: u128) {
         let node = node_with_key_mut(tree, nodeKey);
         if (key == node.key) {
-            // Because this is a duplicate key, we must not increase the tree length!
+            // Because this is a duplicate key, we must not increase the tree's key count!
             vector::push_back(&mut node.values, value);
         } else if (key < node.key) {
             // Key is lower than the current value, so go towards left.
@@ -527,7 +530,7 @@ module ferum_std::red_black_tree {
                 node.leftChildNodeKeyIsSet = true;
                 freeze(node);
                 table::add(&mut tree.nodes, key, newNode);
-                tree.length = tree.length + 1;
+                tree.keyCount = tree.keyCount + 1;
             }
         } else if (key > node.key) {
             // Key is lower than the current value, so go towards right.
@@ -540,7 +543,7 @@ module ferum_std::red_black_tree {
                 node.rightChildNodeKeyIsSet = true;
                 freeze(node);
                 table::add(&mut tree.nodes, key, newNode);
-                tree.length = tree.length + 1;
+                tree.keyCount = tree.keyCount + 1;
             }
         }
     }
@@ -704,7 +707,7 @@ module ferum_std::red_black_tree {
         };
 
         table::remove(&mut tree.nodes, key);
-        tree.length = tree.length - 1
+        tree.keyCount = tree.keyCount - 1
     }
 
     ///
@@ -1237,7 +1240,7 @@ module ferum_std::red_black_tree {
     fun test_is_empty_with_empty_tree(signer: signer) {
         let tree = new<u128>();
         assert!(is_empty<u128>(&tree), 0);
-        assert!(length<u128>(&tree) == 0, 0);
+        assert!(keyCount<u128>(&tree) == 0, 0);
         assert!(!contains_key(&tree, 10), 0);
         assert_inorder_tree(&tree, b"");
         assert_red_black_tree(&tree);
@@ -1249,7 +1252,7 @@ module ferum_std::red_black_tree {
         let tree = new<u128>();
         insert(&mut tree, 10, 100);
         assert!(!is_empty<u128>(&tree), 0);
-        assert!(length<u128>(&tree) == 1, 0);
+        assert!(keyCount<u128>(&tree) == 1, 0);
         assert!(contains_key(&tree, 10), 0);
         assert_inorder_tree(&tree, b"10(B) root _ _: [100]");
         assert_red_black_tree(&tree);
@@ -1262,7 +1265,7 @@ module ferum_std::red_black_tree {
         insert(&mut tree, 10, 10);
         insert(&mut tree, 10, 100);
         assert!(!is_empty<u128>(&tree), 0);
-        assert!(length<u128>(&tree) == 1, 0);
+        assert!(keyCount<u128>(&tree) == 1, 0);
         assert!(contains_key(&tree, 10), 0);
         assert_inorder_tree(&tree, b"10(B) root _ _: [10, 100]");
         assert_red_black_tree(&tree);
@@ -1276,7 +1279,7 @@ module ferum_std::red_black_tree {
         insert(&mut tree, 8, 10);
         insert(&mut tree, 8, 1);
         assert!(!is_empty<u128>(&tree), 0);
-        assert!(length<u128>(&tree) == 2, 0);
+        assert!(keyCount<u128>(&tree) == 2, 0);
         assert!(contains_key(&tree, 10), 0);
         assert!(contains_key(&tree, 8), 0);
         assert_inorder_tree(&tree, b"8(R) 10 _ _: [10, 1], 10(B) root 8 _: [10]");
@@ -1291,7 +1294,7 @@ module ferum_std::red_black_tree {
         insert(&mut tree, 12, 100);
         insert(&mut tree, 12, 1000);
         assert!(!is_empty<u128>(&tree), 0);
-        assert!(length<u128>(&tree) == 2, 0);
+        assert!(keyCount<u128>(&tree) == 2, 0);
         assert!(contains_key(&tree, 10), 0);
         assert!(contains_key(&tree, 12), 0);
         assert_inorder_tree(&tree, b"10(B) root _ 12: [10], 12(R) 10 _ _: [100, 1000]");
@@ -1305,7 +1308,7 @@ module ferum_std::red_black_tree {
         insert(&mut tree, 10, 100);
         insert(&mut tree, 8, 10);
         assert!(!is_empty<u128>(&tree), 0);
-        assert!(length<u128>(&tree) == 2, 0);
+        assert!(keyCount<u128>(&tree) == 2, 0);
         assert!(contains_key(&tree, 10), 0);
         assert!(contains_key(&tree, 8), 0);
         assert!(*value_at(&tree, 8) == 10, 0);
@@ -1322,7 +1325,7 @@ module ferum_std::red_black_tree {
         insert(&mut tree, 8, 10);
         insert(&mut tree, 6, 1);
         assert!(!is_empty<u128>(&tree), 0);
-        assert!(length<u128>(&tree) == 3, 0);
+        assert!(keyCount<u128>(&tree) == 3, 0);
         assert!(contains_key(&tree, 10), 0);
         assert!(contains_key(&tree, 8), 0);
         assert!(contains_key(&tree, 6), 0);
@@ -1339,7 +1342,7 @@ module ferum_std::red_black_tree {
         insert(&mut tree, 10, 100);
         insert(&mut tree, 12, 1000);
         assert!(!is_empty<u128>(&tree), 0);
-        assert!(length<u128>(&tree) == 2, 0);
+        assert!(keyCount<u128>(&tree) == 2, 0);
         assert!(contains_key(&tree, 10), 0);
         assert!(contains_key(&tree, 12), 0);
         assert!(*value_at(&tree, 10) == 100, 0);
@@ -1355,7 +1358,7 @@ module ferum_std::red_black_tree {
         insert(&mut tree, 12, 1000);
         insert(&mut tree, 14, 10000);
         assert!(!is_empty<u128>(&tree), 0);
-        assert!(length<u128>(&tree) == 3, 0);
+        assert!(keyCount<u128>(&tree) == 3, 0);
         assert!(contains_key(&tree, 10), 0);
         assert!(contains_key(&tree, 12), 0);
         assert!(contains_key(&tree, 14), 0);
@@ -1374,7 +1377,7 @@ module ferum_std::red_black_tree {
         insert(&mut tree, 12, 1000);
         insert(&mut tree, 6, 5);
         assert!(!is_empty<u128>(&tree), 0);
-        assert!(length<u128>(&tree) == 4, 0);
+        assert!(keyCount<u128>(&tree) == 4, 0);
         assert_inorder_tree(&tree, b"6(R) 8 _ _: [5], 8(B) 10 6 _: [10], 10(B) root 8 12: [100], 12(B) 10 _ _: [1000]");
         move_to(&signer, tree)
     }
@@ -1384,7 +1387,7 @@ module ferum_std::red_black_tree {
         let tree = new<u128>();
         insert(&mut tree, 10, 100);
         assert!(!is_empty<u128>(&tree), 0);
-        assert!(length<u128>(&tree) == 1, 0);
+        assert!(keyCount<u128>(&tree) == 1, 0);
         let (key, value) = peek<u128>(&tree);
         assert!(key == 10, 0);
         assert!(*value == 100, 0);
@@ -1400,11 +1403,11 @@ module ferum_std::red_black_tree {
         // It's just a leaf root node.
         let tree = test_tree(vector<u128>[10]);
         assert_inorder_tree(&tree, b"10(B) root _ _: [0]");
-        assert!(length(&tree) == 1, 0);
+        assert!(keyCount(&tree) == 1, 0);
         delete(&mut tree, 10);
         assert_inorder_tree(&tree, b"");
         assert!(is_empty(&tree), 0);
-        assert!(length(&tree) == 0, 0);
+        assert!(keyCount(&tree) == 0, 0);
         assert_red_black_tree(&tree);
         move_to(&signer, tree)
     }
@@ -1414,10 +1417,10 @@ module ferum_std::red_black_tree {
         // It's just a leaf root node.
         let tree = test_tree(vector<u128>[10, 5]);
         assert_inorder_tree(&tree, b"5(R) 10 _ _: [0], 10(B) root 5 _: [0]");
-        assert!(length(&tree) == 2, 0);
+        assert!(keyCount(&tree) == 2, 0);
         delete(&mut tree, 10);
         assert_inorder_tree(&tree, b"5(B) root _ _: [0]");
-        assert!(length(&tree) == 1, 0);
+        assert!(keyCount(&tree) == 1, 0);
         move_to(&signer, tree)
     }
 
@@ -1426,10 +1429,10 @@ module ferum_std::red_black_tree {
         // It's just a leaf root node.
         let tree = test_tree(vector<u128>[10, 15]);
         assert_inorder_tree(&tree, b"10(B) root _ 15: [0], 15(R) 10 _ _: [0]");
-        assert!(length(&tree) == 2, 0);
+        assert!(keyCount(&tree) == 2, 0);
         delete(&mut tree, 10);
         assert_inorder_tree(&tree, b"15(B) root _ _: [0]");
-        assert!(length(&tree) == 1, 0);
+        assert!(keyCount(&tree) == 1, 0);
         move_to(&signer, tree)
     }
 
@@ -1437,10 +1440,10 @@ module ferum_std::red_black_tree {
     fun test_delete_root_node_with_two_red_successors(signer: signer) {
         let tree = test_tree(vector<u128>[10, 5, 15]);
         assert_inorder_tree(&tree, b"5(R) 10 _ _: [0], 10(B) root 5 15: [0], 15(R) 10 _ _: [0]");
-        assert!(length(&tree) == 3, 0);
+        assert!(keyCount(&tree) == 3, 0);
         delete(&mut tree, 10);
         assert_inorder_tree(&tree, b"5(R) 15 _ _: [0], 15(B) root 5 _: [0]");
-        assert!(length(&tree) == 2, 0);
+        assert!(keyCount(&tree) == 2, 0);
         move_to(&signer, tree)
     }
 
@@ -1568,7 +1571,7 @@ module ferum_std::red_black_tree {
         while (i < 100) {
             insert(&mut tree, i, i);
             assert!(contains_key(&tree, i), 0);
-            assert!(length<u128>(&tree) == i + 1, 0);
+            assert!(keyCount<u128>(&tree) == i + 1, 0);
             assert_red_black_tree(&tree);
             i = i + 1;
         };
@@ -1576,7 +1579,7 @@ module ferum_std::red_black_tree {
             i = i - 1;
             delete(&mut tree, i);
             assert!(!contains_key(&tree, i), 0);
-            assert!(length<u128>(&tree) == i, 0);
+            assert!(keyCount<u128>(&tree) == i, 0);
             assert_red_black_tree(&tree);
         };
         assert!(is_empty(&tree), 0);
@@ -1592,13 +1595,13 @@ module ferum_std::red_black_tree {
             i = i - 1;
             insert(&mut tree, i, i);
             assert!(contains_key(&tree, i), 0);
-            assert!(length<u128>(&tree) == count - i, 0);
+            assert!(keyCount<u128>(&tree) == count - i, 0);
             assert_red_black_tree(&tree);
         };
         while (i < count) {
             delete(&mut tree, i);
             assert!(!contains_key(&tree, i), 0);
-            assert!(length<u128>(&tree) == count - i - 1, 0);
+            assert!(keyCount<u128>(&tree) == count - i - 1, 0);
             assert_red_black_tree(&tree);
             i = i + 1;
         };
@@ -1620,9 +1623,9 @@ module ferum_std::red_black_tree {
         };
         while (!is_empty(&tree)) {
             let (key, _) = peek(&tree);
-            let lengthBeforeDeletion = length<u128>(&tree);
+            let keyCountBeforeDeletion = keyCount<u128>(&tree);
             delete(&mut tree, key);
-            assert!(lengthBeforeDeletion == length<u128>(&tree) + 1, 0);
+            assert!(keyCountBeforeDeletion == keyCount<u128>(&tree) + 1, 0);
             assert_red_black_tree(&tree);
             i = i - 1;
         };
