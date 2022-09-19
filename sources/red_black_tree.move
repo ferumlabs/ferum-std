@@ -33,6 +33,9 @@ module ferum_std::red_black_tree {
     const INVALID_OUTGOING_SWAP_EDGE_DIRECTION: u64 = 7;
     const ONLY_LEAF_NODES_CAN_BE_ADDED: u64 = 8;
     const INVALID_FIX_DOUBLE_RED_OPERATION: u64 = 9;
+    const INVALID_LEAF_NODE_HAS_LEFT_CHILD: u64 = 10;
+    const INVALID_LEAF_NODE_HAS_RIGHT_CHILD: u64 = 11;
+    const INVALID_LEAF_NODE_NO_PARENT: u64 = 12;
 
     //
     // STRUCTS
@@ -440,9 +443,9 @@ module ferum_std::red_black_tree {
 
     fun remove_leaf_node<V: store + drop>(tree: &mut Tree<V>, key: u128) {
         let node = get_node(tree, key);
-        assert!(!node.leftChildNodeKeyIsSet, 0);
-        assert!(!node.rightChildNodeKeyIsSet, 0);
-        assert!(node.parentNodeKeyIsSet, 0);
+        assert!(!node.leftChildNodeKeyIsSet, INVALID_LEAF_NODE_HAS_LEFT_CHILD);
+        assert!(!node.rightChildNodeKeyIsSet, INVALID_LEAF_NODE_HAS_RIGHT_CHILD);
+        assert!(node.parentNodeKeyIsSet, INVALID_LEAF_NODE_NO_PARENT);
 
         // If the node is red, removing it will not have affected tree invariants.
         // If the node is black, we need to account for the missing black. We do this
