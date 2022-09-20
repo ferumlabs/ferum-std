@@ -92,8 +92,8 @@ module ferum_std::red_black_tree {
         keyCount: u128,
         // Counts the total number of values in the tree; valueCount >= keyCount.
         valueCount: u128,
-        // Max key.
         maxKey: u128,
+        minKey: u128,
         rootNodeKey: u128,
         nodes: table::Table<u128, Node<V>>
     }
@@ -129,6 +129,7 @@ module ferum_std::red_black_tree {
             keyCount: 0,
             valueCount: 0,
             maxKey: 0,
+            minKey: 0,
             rootNodeKey: 0,
             nodes: table::new<u128, Node<V>>()
         }
@@ -183,6 +184,12 @@ module ferum_std::red_black_tree {
     public fun max_key<V: store + drop>(tree: &Tree<V>): u128 {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
         tree.maxKey
+    }
+
+    /// Returns the minimum key in the tree, if one exists.
+    public fun min_key<V: store + drop>(tree: &Tree<V>): u128 {
+        assert!(!is_empty(tree), TREE_IS_EMPTY);
+        tree.minKey
     }
 
     //
@@ -404,9 +411,14 @@ module ferum_std::red_black_tree {
             let rootNodeKey = tree.rootNodeKey;
             insert_starting_at_node(tree, key, value, rootNodeKey);
         };
-        if (tree.keyCount == 1 || key > tree.maxKey) {
+        if (tree.keyCount == 1) {
             tree.maxKey = key;
-        }
+            tree.minKey = key;
+        } else if (key > tree.maxKey) {
+            tree.maxKey = key;
+        } else if (key < tree.minKey) {
+            tree.minKey = key;
+        };
     }
 
     fun insert_starting_at_node<V: store + drop>(tree: &mut Tree<V>, key: u128, value: V, nodeKey: u128) {
@@ -499,15 +511,21 @@ module ferum_std::red_black_tree {
             table::remove(&mut tree.nodes, key);
             tree.keyCount = 0;
             tree.valueCount = 0;
-            tree.maxKey = 0;
             tree.rootNodeKey = 0;
             return
         };
 
         let node = get_node(tree, key);
         if (!node.leftChildNodeKeyIsSet && !node.rightChildNodeKeyIsSet) {
+            assert!(node.parentNodeKeyIsSet, KEY_NOT_FOUND);
+            let nodeParent = node.parentNodeKey;
             // A leaf node. Can't be root because we already accounted for that case above.
             remove_leaf_node(tree, key);
+            if (key == tree.maxKey) {
+                tree.maxKey = nodeParent;
+            } else if (key == tree.minKey) {
+                tree.minKey = nodeParent;
+            };
             return
         };
 
@@ -547,10 +565,6 @@ module ferum_std::red_black_tree {
         } else {
             parent.rightChildNodeKeyIsSet = false
         };
-
-        if (node.key == tree.maxKey) {
-            tree.maxKey = node.parentNodeKey;
-        }
     }
 
     // When deleting, we potentially create double black node. The node that is doublle black is kept track of
@@ -2025,6 +2039,69 @@ module ferum_std::red_black_tree {
         move_to(&signer, tree)
     }
 
+    #[test(signer = @0x345)]
+    fun test_max_key_after_emptying_tree(signer: signer) {
+        let tree = new<u128>();
+        insert(&mut tree, 5, 1);
+        assert!(max_key(&tree) == 5, 0);
+        delete_key(&mut tree, 5);
+        insert(&mut tree, 4, 1);
+        assert!(max_key(&tree) == 4, 0);
+        move_to(&signer, tree)
+    }
+
+    //
+    // TEST MIN KEY COUNT
+    //
+
+    #[test(signer = @0x345)]
+    #[expected_failure(abort_code = 0)]
+    fun test_min_key_with_empty_tree(signer: signer) {
+        let tree = new<u128>();
+        max_key(&tree);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_min_key_after_insertion(signer: signer) {
+        let tree = new<u128>();
+        insert(&mut tree, 10, 1);
+        assert!(min_key(&tree) == 10, 0);
+        insert(&mut tree, 15, 1);
+        assert!(min_key(&tree) == 10, 0);
+        insert(&mut tree, 5, 1);
+        assert!(min_key(&tree) == 5, 0);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_min_key_after_deletion(signer: signer) {
+        let tree = new<u128>();
+        insert(&mut tree, 10, 1);
+        insert(&mut tree, 5, 1);
+        insert(&mut tree, 15, 1);
+        insert(&mut tree, 25, 1);
+        assert!(min_key(&tree) == 5, 0);
+        delete_key(&mut tree, 5);
+        assert!(min_key(&tree) == 10, 0);
+        delete_key(&mut tree, 10);
+        assert!(min_key(&tree) == 15, 0);
+        delete_key(&mut tree, 15);
+        assert!(min_key(&tree) == 25, 0);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_min_key_after_emptying_tree(signer: signer) {
+        let tree = new<u128>();
+        insert(&mut tree, 5, 1);
+        assert!(min_key(&tree) == 5, 0);
+        delete_key(&mut tree, 5);
+        insert(&mut tree, 3, 1);
+        assert!(min_key(&tree) == 3, 0);
+        move_to(&signer, tree)
+    }
+
     //
     // FUZZ TESTING
     //
@@ -2366,14 +2443,15 @@ module ferum_std::red_black_tree {
             tree.keyCount = tree.keyCount + 1;
             if (nodeKey > maxKey) {
                 maxKey = nodeKey;
-            } else if (nodeKey < minKey) {
+            };
+            if (nodeKey < minKey) {
                 minKey = nodeKey
             };
             vector::push_back(&mut nodeKeys, nodeKey);
             i = newPos;
         };
         tree.maxKey = maxKey;
-        //tree.minKey = minKey;
+        tree.minKey = minKey;
         assert_correct_node_keys(&tree,tree.rootNodeKey);
         tree
     }
@@ -2405,7 +2483,7 @@ module ferum_std::red_black_tree {
             // Condition 2. All node keys must point to other valid nodes.
             assert_correct_node_keys(tree, tree.rootNodeKey);
             // Condition 3: Min and max keys are valid keys!
-            assert_valid_min_max_keys(tree);
+            assert_correct_min_max_keys(tree);
             // Condition 4. The root node must be black!
             assert!(!is_red(tree, tree.rootNodeKey), INVALID_ROOD_NODE_COLOR);
             // Condition 5: There are no two adjacent red nodes (A red node cannot have a red parent or a red child).
@@ -2418,10 +2496,14 @@ module ferum_std::red_black_tree {
     }
 
     #[test_only]
-    fun assert_valid_min_max_keys<V: store + drop>(tree: &Tree<V>) {
+    fun assert_correct_min_max_keys<V: store + drop>(tree: &Tree<V>) {
         let inorderKeys = inorder_keys(tree);
+        let minInorderKey = *vector::borrow(&inorderKeys, 0);
         let maxInorderKey = *vector::borrow(&inorderKeys, vector::length(&inorderKeys) - 1);
+        assert!(minInorderKey == tree.minKey, 0);
+        assert!(contains_key(tree, tree.minKey), 0);
         assert!(maxInorderKey == tree.maxKey, 0);
+        assert!(contains_key(tree, tree.maxKey), 0);
     }
 
     #[test_only]
