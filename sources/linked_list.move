@@ -50,14 +50,14 @@
 /// print_list(&list) // 50 <-> 20 <-> 200
 /// ```
 module ferum_std::linked_list {
-    use aptos_std::table;
+    use aptos_std::table_with_length as table;
+    use std::vector;
     #[test_only]
     use std::string;
     #[test_only]
     use ferum_std::test_utils::to_string_u128;
     #[test_only]
     use std::string::String;
-    use std::vector;
 
     /// Thrown when the key for a given node is not found.
     const KEY_NOT_FOUND: u64 = 1;
@@ -80,8 +80,8 @@ module ferum_std::linked_list {
 
     /// Struct representing the linked list.
     struct LinkedList<V: store + copy + drop> has key, store {
-        nodes: table::Table<u128, Node<V>>,
-        nodeKeys: table::Table<V, vector<u128>>,
+        nodes: table::TableWithLength<u128, Node<V>>,
+        nodeKeys: table::TableWithLength<V, vector<u128>>,
         keyCounter: u128,
         length: u128,
         head: u128,
@@ -181,6 +181,42 @@ module ferum_std::linked_list {
         list.length
     }
 
+    /// Returns the list as a vector.
+    public fun as_vector<V: store + copy + drop>(list: &LinkedList<V>): vector<V> {
+        let out = vector::empty();
+        if (length(list) == 0) {
+            return out
+        };
+
+        let curr = get_node(list, list.head);
+        vector::push_back(&mut out, curr.value);
+        while (curr.nextIsSet) {
+            curr = get_node(list, curr.next);
+            vector::push_back(&mut out, curr.value);
+        };
+        out
+    }
+
+    public fun drop<V: store + copy + drop>(list: LinkedList<V>) {
+        empty_list(&mut list);
+        let LinkedList<V>{
+            nodes,
+            nodeKeys,
+            keyCounter: _,
+            length: _,
+            head: _,
+            tail: _
+        } = list;
+        table::destroy_empty(nodes);
+        table::destroy_empty(nodeKeys);
+    }
+
+    fun empty_list<V: store + copy + drop>(list: &mut LinkedList<V>) {
+        while (length(list) > 0) {
+            remove_first(list);
+        }
+    }
+
     fun get_node<V: store + copy + drop>(list: &LinkedList<V>, key: u128): &Node<V> {
         table::borrow(&list.nodes, key)
     }
@@ -194,6 +230,9 @@ module ferum_std::linked_list {
         let idxVector = table::borrow_mut(&mut list.nodeKeys, node.value);
         let (_, idx) = vector::index_of(idxVector, &key);
         vector::swap_remove(idxVector, idx);
+        if (vector::length(idxVector) == 0) {
+            table::remove(&mut list.nodeKeys, node.value);
+        };
 
         // Update prev node.
         if (node.prevIsSet) {
