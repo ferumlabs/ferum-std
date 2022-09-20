@@ -35,7 +35,7 @@ let subtracted = fixed_point_64::sub(b, a);
 
 // Perform multiplication / division with support for rounding up or truncating.
 let multipliedRounded = fixed_point_64::multiply_round_up(a, a);
-let multipliedTruncated = fixed_point_64::multiply_round_up(a, a);
+let multipliedTruncated = fixed_point_64::multiply_truncated(a, a);
 let dividedRounded = fixed_point_64::divide_round_up(b, a);
 let dividedTruncated = fixed_point_64::divide_trunc(b, a);
 

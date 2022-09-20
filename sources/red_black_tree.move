@@ -11,7 +11,7 @@
 ///
 /// The tree supports the following operations with the given time complexities:
 ///
-/// | Operation                            | Worst Case Time Complexity | Ammortized Time Complexity |
+/// | Operation                            | Worst Case Time Complexity | Amortized Time Complexity  |
 /// |--------------------------------------|----------------------------|----------------------------|
 /// | Deletion of value                    | O(1)                       | O(1)                       |
 /// | Deletion of key                      | O(log(k))                  | O(1)                       |

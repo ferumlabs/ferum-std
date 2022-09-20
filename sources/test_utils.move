@@ -2,10 +2,6 @@ module ferum_std::test_utils {
     use std::string::{Self, String};
     use std::vector;
 
-    ///
-    /// PUBLIC
-    ///
-
     public fun compare_vector_128(v: &vector<u128>, byteString: vector<u8>): bool {
         *string::bytes(&to_string_vector(v, b", ")) == byteString
     }
