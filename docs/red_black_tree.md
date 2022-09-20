@@ -252,6 +252,18 @@ Returns if the tree is empty.
 
 
 
+<a name="ferum_std_red_black_tree_contains_key"></a>
+
+## Function `contains_key`
+
+Returns true if the tree has at least one value with the given key.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="red_black_tree.md#ferum_std_red_black_tree_contains_key">contains_key</a>&lt;V: drop, store&gt;(tree: &<a href="red_black_tree.md#ferum_std_red_black_tree_Tree">red_black_tree::Tree</a>&lt;V&gt;, key: u128): bool
+</code></pre>
+
+
+
 <a name="ferum_std_red_black_tree_key_count"></a>
 
 ## Function `key_count`
@@ -288,18 +300,6 @@ Returns the total number of values for the given key.
 
 
 
-<a name="ferum_std_red_black_tree_contains_key"></a>
-
-## Function `contains_key`
-
-Returns true if the tree has at least one value with the given key.
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="red_black_tree.md#ferum_std_red_black_tree_contains_key">contains_key</a>&lt;V: drop, store&gt;(tree: &<a href="red_black_tree.md#ferum_std_red_black_tree_Tree">red_black_tree::Tree</a>&lt;V&gt;, key: u128): bool
-</code></pre>
-
-
-
 <a name="ferum_std_red_black_tree_first_value_at"></a>
 
 ## Function `first_value_at`
@@ -320,4 +320,28 @@ Returns all the values with the given key.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="red_black_tree.md#ferum_std_red_black_tree_values_at">values_at</a>&lt;V: drop, store&gt;(tree: &<a href="red_black_tree.md#ferum_std_red_black_tree_Tree">red_black_tree::Tree</a>&lt;V&gt;, key: u128): &<a href="">vector</a>&lt;V&gt;
+</code></pre>
+
+
+
+<a name="ferum_std_red_black_tree_max_key"></a>
+
+## Function `max_key`
+
+Returns the maximum key in the tree, if one exists.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="red_black_tree.md#ferum_std_red_black_tree_max_key">max_key</a>&lt;V: drop, store&gt;(tree: &<a href="red_black_tree.md#ferum_std_red_black_tree_Tree">red_black_tree::Tree</a>&lt;V&gt;): u128
+</code></pre>
+
+
+
+<a name="ferum_std_red_black_tree_min_key"></a>
+
+## Function `min_key`
+
+Returns the minimum key in the tree, if one exists.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="red_black_tree.md#ferum_std_red_black_tree_min_key">min_key</a>&lt;V: drop, store&gt;(tree: &<a href="red_black_tree.md#ferum_std_red_black_tree_Tree">red_black_tree::Tree</a>&lt;V&gt;): u128
 </code></pre>

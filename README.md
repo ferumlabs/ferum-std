@@ -5,6 +5,8 @@ Move is an awesome langauge, but since the ecosystem is still early, it's missin
 ## List of Modules
 
 * [`ferum_std::fixed_point_64`](./#fixed-point) — Ferum's implementation of FixedPoint, helping manage decimal points represented as integers.
+* [`ferum_std::red_black_tree`](./#red-black-tree) — Ferum's implementation of Red Black Trees, a self-balancing binary search tree.
+* [`ferum_std::linked_lisr`](./#linked-list) — Ferum's implementation of a Linked List.
 
 ## Installing
 
@@ -64,6 +66,66 @@ let dividedTruncated = fixed_point_64::divide_trunc(b, a);
 // Convert back to integers.
 let au64 = fixed_point_64::to_u64(a, 3);
 let bu64 = fixed_point_64::to_u64(b, 2);
+```
+
+### Red Black Tree ([Full Docs](docs/red\_black\_tree.md))
+
+```
+use ferum_std::red_black_tree::{Self, Tree};
+
+// Create a tree with u128 values.
+let tree = red_black_tree::new<u128>();
+
+// Insert
+red_black_tree::insert(&mut tree, 100, 50);
+red_black_tree::insert(&mut tree, 100, 40);
+red_black_tree::insert(&mut tree, 120, 10);
+red_black_tree::insert(&mut tree, 90, 5);
+
+// Get min/max
+let min = red_black_tree::min_key(&tree);
+assert!(min == 90, 0);
+let max = red_black_tree::max_key(&tree);
+assert!(max == 90, 0);
+
+// Delete values and keys.
+red_black_tree::delete_value(&mut tree, 100, 40);
+red_black_tree::delete_key(&mut tree, 90);
+let min = red_black_tree::min_key(&tree);
+assert!(min == 100, 0);
+```
+
+### Linked List ([Full Docs](docs/linked\_list.md))
+
+```
+use ferum_std::linked_list::{Self, List};
+
+// Create a list with u128 values.
+let list = linked_list::new<u128>();
+
+// Add values
+linked_list::add(&mut list, 100);
+linked_list::add(&mut list, 50);
+linked_list::add(&mut list, 20);
+linked_list::add(&mut list, 200);
+linked_list::add(&mut list, 100); // Duplicate
+
+print_list(&list) // 100 <-> 50 <-> 20 <-> 200 <-> 100
+
+// Get length of list.
+linked_list::length(&list) // == 4
+
+// Check if list contains value.
+linked_list::contains(&list, 100) // true
+linked_list::contains(&list, 10-0) // false
+
+// Remove last
+linked_list::remove_last(&list);
+print_list(&list) // 100 <-> 50 <-> 20 <-> 200
+
+// Remove first
+linked_list::remove_first(&list);
+print_list(&list) // 50 <-> 20 <-> 200
 ```
 
 ## Contributing
