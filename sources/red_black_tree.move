@@ -59,7 +59,7 @@ module ferum_std::red_black_tree {
     #[test_only]
     use std::string::{Self, String};
     #[test_only]
-    use ferum_std::math::max_u128;
+    use ferum_std::math::max_value_u128;
     use ferum_std::linked_list::LinkedList;
     use ferum_std::linked_list;
 
@@ -2469,7 +2469,7 @@ module ferum_std::red_black_tree {
 
         let i = 0;
         let maxKey = 0;
-        let minKey = max_u128();
+        let minKey = max_value_u128();
         while (i < string::length(&str)) {
             let (node, newPos) = parse_node(strRaw, i);
             let nodeKey = node.key;

@@ -41,7 +41,7 @@
 /// ```
 module ferum_std::fixed_point_64 {
 
-    use ferum_std::math::max_u128;
+    use ferum_std::math::max_value_u128;
 
     /// Fixedpoint struct. Can be stored, copied, and dropped.
     struct FixedPoint64 has store, drop, copy {
@@ -113,7 +113,7 @@ module ferum_std::fixed_point_64 {
 
     /// Returns the max FixedPoint value.
     public fun max_fp(): FixedPoint64 {
-        FixedPoint64 { val: max_u128() }
+        FixedPoint64 { val: max_value_u128() }
     }
 
     /// Returns the min FixedPoint value.
@@ -416,7 +416,7 @@ module ferum_std::fixed_point_64 {
     #[test]
     #[expected_failure]
     fun test_from_large_integer() {
-        from_u128(max_u128(), 10);
+        from_u128(max_value_u128(), 10);
     }
 
     #[test]
