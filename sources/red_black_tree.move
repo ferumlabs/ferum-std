@@ -5,7 +5,7 @@
 /// Ferum's implementation of a [Red Black Tree](https://en.wikipedia.org/wiki/Red%E2%80%93black_tree).
 /// A red black tree is a self balancing binary tree which performs rotations on tree manipulations to maintain a tree
 /// height of log(k), where k is the number of keys in the tree. Values with duplicate keys can be inserted into the
-/// tree — each value will stored in a linked list on each tree node. When a node no longer has any values, the node
+/// tree; each value will stored in a linked list on each tree node. When a node no longer has any values, the node
 /// is removed (this is referred to as key deletion). The tree only supports u128 keys because (as of writing) move
 /// has no way to define comparators for generic types.
 ///
