@@ -2,8 +2,16 @@
 description: ferum_std::linked_list
 ---
 
-Ferum's implementation of a doubly linked list. Support addition and removal from the tail/head in O(1) time.
-Duplicate values are supported.
+Ferum's implementation of a doubly linked list. Values stored in the list should be cheap to copy. Duplicate values
+are supported.
+
+| Operation                            | Worst Case Time Complexity |
+|--------------------------------------|----------------------------|
+| Insertion of value to tail           | O(1)                       |
+| Deletion of value                    | O(1)                       |
+| Deletion of value at head            | O(1)                       |
+| Deletion of value at tail            | O(1)                       |
+| Contains value                       | O(1)                       |
 
 Each value is stored internally in a table with a unique key pointing to that value. The key is generated
 sequentially using a u128 counter. So the maximum number of values that can be added to the list is MAX_U128
@@ -56,7 +64,7 @@ print_list(&list) // 50 <-> 20 <-> 200
 Struct representing the linked list.
 
 
-<pre><code><b>struct</b> <a href="linked_list.md#ferum_std_linked_list_LinkedList">LinkedList</a>&lt;V: drop, store&gt; <b>has</b> store, key
+<pre><code><b>struct</b> <a href="linked_list.md#ferum_std_linked_list_LinkedList">LinkedList</a>&lt;V: <b>copy</b>, drop, store&gt; <b>has</b> store, key
 </code></pre>
 
 
@@ -112,6 +120,21 @@ Thrown when the key for a given node is not found.
 
 
 
+<a name="@value_not_found"></a>
+
+## VALUE_NOT_FOUND
+
+
+<a name="ferum_std_linked_list_VALUE_NOT_FOUND"></a>
+
+Thrown when a value being searched for is not found.
+
+
+<pre><code><b>const</b> <a href="linked_list.md#ferum_std_linked_list_VALUE_NOT_FOUND">VALUE_NOT_FOUND</a>: u64 = 4;
+</code></pre>
+
+
+
 <a name="@functions"></a>
 
 # Functions
@@ -124,7 +147,19 @@ Thrown when the key for a given node is not found.
 Initialize a new list.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="linked_list.md#ferum_std_linked_list_new">new</a>&lt;V: drop, store&gt;(): <a href="linked_list.md#ferum_std_linked_list_LinkedList">linked_list::LinkedList</a>&lt;V&gt;
+<pre><code><b>public</b> <b>fun</b> <a href="linked_list.md#ferum_std_linked_list_new">new</a>&lt;V: <b>copy</b>, drop, store&gt;(): <a href="linked_list.md#ferum_std_linked_list_LinkedList">linked_list::LinkedList</a>&lt;V&gt;
+</code></pre>
+
+
+
+<a name="ferum_std_linked_list_singleton"></a>
+
+## Function `singleton`
+
+Creates a linked list with a single element.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="linked_list.md#ferum_std_linked_list_singleton">singleton</a>&lt;V: <b>copy</b>, drop, store&gt;(val: V): <a href="linked_list.md#ferum_std_linked_list_LinkedList">linked_list::LinkedList</a>&lt;V&gt;
 </code></pre>
 
 
@@ -136,7 +171,19 @@ Initialize a new list.
 Add a value to the list.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="linked_list.md#ferum_std_linked_list_add">add</a>&lt;V: drop, store&gt;(list: &<b>mut</b> <a href="linked_list.md#ferum_std_linked_list_LinkedList">linked_list::LinkedList</a>&lt;V&gt;, value: V)
+<pre><code><b>public</b> <b>fun</b> <a href="linked_list.md#ferum_std_linked_list_add">add</a>&lt;V: <b>copy</b>, drop, store&gt;(list: &<b>mut</b> <a href="linked_list.md#ferum_std_linked_list_LinkedList">linked_list::LinkedList</a>&lt;V&gt;, value: V)
+</code></pre>
+
+
+
+<a name="ferum_std_linked_list_remove"></a>
+
+## Function `remove`
+
+Removes a value from the list. If there are duplicates, a random occurence is removed.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="linked_list.md#ferum_std_linked_list_remove">remove</a>&lt;V: <b>copy</b>, drop, store&gt;(list: &<b>mut</b> <a href="linked_list.md#ferum_std_linked_list_LinkedList">linked_list::LinkedList</a>&lt;V&gt;, value: V)
 </code></pre>
 
 
@@ -148,7 +195,7 @@ Add a value to the list.
 Remove the first element of the list. If the list is empty, will throw an error.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="linked_list.md#ferum_std_linked_list_remove_first">remove_first</a>&lt;V: drop, store&gt;(list: &<b>mut</b> <a href="linked_list.md#ferum_std_linked_list_LinkedList">linked_list::LinkedList</a>&lt;V&gt;)
+<pre><code><b>public</b> <b>fun</b> <a href="linked_list.md#ferum_std_linked_list_remove_first">remove_first</a>&lt;V: <b>copy</b>, drop, store&gt;(list: &<b>mut</b> <a href="linked_list.md#ferum_std_linked_list_LinkedList">linked_list::LinkedList</a>&lt;V&gt;)
 </code></pre>
 
 
@@ -160,7 +207,19 @@ Remove the first element of the list. If the list is empty, will throw an error.
 Remove the last element of the list. If the list is empty, will throw an error.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="linked_list.md#ferum_std_linked_list_remove_last">remove_last</a>&lt;V: drop, store&gt;(list: &<b>mut</b> <a href="linked_list.md#ferum_std_linked_list_LinkedList">linked_list::LinkedList</a>&lt;V&gt;)
+<pre><code><b>public</b> <b>fun</b> <a href="linked_list.md#ferum_std_linked_list_remove_last">remove_last</a>&lt;V: <b>copy</b>, drop, store&gt;(list: &<b>mut</b> <a href="linked_list.md#ferum_std_linked_list_LinkedList">linked_list::LinkedList</a>&lt;V&gt;)
+</code></pre>
+
+
+
+<a name="ferum_std_linked_list_borrow_first"></a>
+
+## Function `borrow_first`
+
+Get a reference to the first element of the list.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="linked_list.md#ferum_std_linked_list_borrow_first">borrow_first</a>&lt;V: <b>copy</b>, drop, store&gt;(list: &<a href="linked_list.md#ferum_std_linked_list_LinkedList">linked_list::LinkedList</a>&lt;V&gt;): &V
 </code></pre>
 
 
@@ -172,7 +231,7 @@ Remove the last element of the list. If the list is empty, will throw an error.
 Returns true is the element is in the list.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="linked_list.md#ferum_std_linked_list_contains">contains</a>&lt;V: drop, store&gt;(list: &<a href="linked_list.md#ferum_std_linked_list_LinkedList">linked_list::LinkedList</a>&lt;V&gt;, key: u128): bool
+<pre><code><b>public</b> <b>fun</b> <a href="linked_list.md#ferum_std_linked_list_contains">contains</a>&lt;V: <b>copy</b>, drop, store&gt;(list: &<a href="linked_list.md#ferum_std_linked_list_LinkedList">linked_list::LinkedList</a>&lt;V&gt;, value: V): bool
 </code></pre>
 
 
@@ -184,5 +243,17 @@ Returns true is the element is in the list.
 Returns the length of the list.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="linked_list.md#ferum_std_linked_list_length">length</a>&lt;V: drop, store&gt;(list: &<a href="linked_list.md#ferum_std_linked_list_LinkedList">linked_list::LinkedList</a>&lt;V&gt;): u128
+<pre><code><b>public</b> <b>fun</b> <a href="linked_list.md#ferum_std_linked_list_length">length</a>&lt;V: <b>copy</b>, drop, store&gt;(list: &<a href="linked_list.md#ferum_std_linked_list_LinkedList">linked_list::LinkedList</a>&lt;V&gt;): u128
+</code></pre>
+
+
+
+<a name="ferum_std_linked_list_as_vector"></a>
+
+## Function `as_vector`
+
+Returns the list as a vector.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="linked_list.md#ferum_std_linked_list_as_vector">as_vector</a>&lt;V: <b>copy</b>, drop, store&gt;(list: &<a href="linked_list.md#ferum_std_linked_list_LinkedList">linked_list::LinkedList</a>&lt;V&gt;): <a href="">vector</a>&lt;V&gt;
 </code></pre>
