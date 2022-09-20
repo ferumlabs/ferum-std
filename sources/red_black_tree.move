@@ -11,13 +11,13 @@
 ///
 /// The tree supports the following operations with the given time complexities:
 ///
-/// | Operation                            | Time Complexity |
-/// |--------------------------------------|-----------------|
-/// | Deletion of value                    | O(1)            |
-/// | Deletion of key                      | O(log(n))       |
-/// | Insertion of value with new key      | O(log(n))       |
-/// | Insertion of value with existing key | O(1)            |
-/// | Retrieval of min/max key             | O(1)            |
+/// | Operation                            | Worst Case Time Complexity | Ammortized Time Complexity |
+/// |--------------------------------------|----------------------------|----------------------------|
+/// | Deletion of value                    | O(1)                       | O(1)                       |
+/// | Deletion of key                      | O(log(k))                  | O(1)                       |
+/// | Insertion of value with new key      | O(log(k))                  | O(log(k))                  |
+/// | Insertion of value with existing key | O(1)                       | O(1)                       |
+/// | Retrieval of min/max key             | O(1)                       | O(1)                       |
 ///
 /// # Quick Example
 ///
