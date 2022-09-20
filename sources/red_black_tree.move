@@ -3,9 +3,9 @@
 /// ---
 ///
 /// Ferum's implementation of a [Red Black Tree](https://en.wikipedia.org/wiki/Red%E2%80%93black_tree).
-/// A red black tree is a self balancing binary tree which performs rotations tree manipulations to maintain a tree
+/// A red black tree is a self balancing binary tree which performs rotations on tree manipulations to maintain a tree
 /// height of log(k), where k is the number of keys in the tree. Values with duplicate keys can be inserted into the
-/// tree - each value will stored in a linked list on each tree node. When a node no longer has any values, the node
+/// tree — each value will stored in a linked list on each tree node. When a node no longer has any values, the node
 /// is removed (this is referred to as key deletion). The tree only supports u128 keys because (as of writing) move
 /// has no way to define comparators for generic types.
 ///
@@ -33,17 +33,21 @@
 /// red_black_tree::insert(&mut tree, 120, 10);
 /// red_black_tree::insert(&mut tree, 90, 5);
 ///
-/// // Get min/max
+/// // Get values.
+/// let firstValue = red_black_tree::first_value_at(&tree, 100);
+/// let allValue = red_black_tree::values_at(&tree, 100);
+///
+/// // Get min/max.
 /// let min = red_black_tree::min_key(&tree);
-/// assert!(min == 90, 0);
 /// let max = red_black_tree::max_key(&tree);
-/// assert!(max == 90, 0);
+///
+/// // Get tree metadata.
+/// let keyCount = red_black_tree::key_count(&tree);
+/// let valueCount = red_black_tree::value_count(&tree);
 ///
 /// // Delete values and keys.
 /// red_black_tree::delete_value(&mut tree, 100, 40);
 /// red_black_tree::delete_key(&mut tree, 90);
-/// let min = red_black_tree::min_key(&tree);
-/// assert!(min == 100, 0);
 /// ```
 module ferum_std::red_black_tree {
     use std::vector;
