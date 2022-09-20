@@ -7,11 +7,13 @@ are supported.
 
 | Operation                            | Worst Case Time Complexity |
 |--------------------------------------|----------------------------|
-| Insertion of value to tail           | O(1)                       |
+| Insertion of value to tail           | O(D)                       |
 | Deletion of value                    | O(1)                       |
-| Deletion of value at head            | O(1)                       |
-| Deletion of value at tail            | O(1)                       |
+| Deletion of value at head            | O(D)                       |
+| Deletion of value at tail            | O(D)                       |
 | Contains value                       | O(1)                       |
+
+Where D is the number of duplicates of that particular value.
 
 Each value is stored internally in a table with a unique key pointing to that value. The key is generated
 sequentially using a u128 counter. So the maximum number of values that can be added to the list is MAX_U128
@@ -43,7 +45,7 @@ linked_list::length(&list) // == 4
 
 // Check if list contains value.
 linked_list::contains(&list, 100) // true
-linked_list::contains(&list, 10-0) // false
+linked_list::contains(&list, 300) // false
 
 // Remove last
 linked_list::remove_last(&list);
