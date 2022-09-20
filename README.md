@@ -4,9 +4,9 @@ Move is an awesome langauge, but since the ecosystem is still early, it's missin
 
 ## List of Modules
 
-* [`ferum_std::fixed_point_64`](./#fixed-point) — Ferum's implementation of FixedPoint, helping manage decimal points represented as integers.
-* [`ferum_std::red_black_tree`](./#red-black-tree) — Ferum's implementation of Red Black Trees, a self-balancing binary search tree.
-* [`ferum_std::linked_lisr`](./#linked-list) — Ferum's implementation of a Linked List.
+* [`ferum_std::fixed_point_64`](./#fixed-point) — Implementation of FixedPoint, helping manage decimal points represented as integers.
+* [`ferum_std::red_black_tree`](./#red-black-tree) — Implementation of Red Black Trees, a self-balancing binary search tree.
+* [`ferum_std::linked_lisr`](./#linked-list) — Implementation of a Doubly Linked List.
 
 ## Installing
 
