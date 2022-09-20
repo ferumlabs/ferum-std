@@ -31,7 +31,7 @@
 ///
 /// // Check if list contains value.
 /// linked_list::contains(&list, 100) // true
-/// linked_list::contains(&list, 10-0) // false
+/// linked_list::contains(&list, 300) // false
 ///
 /// // Remove last
 /// linked_list::remove_last(&list);
