@@ -82,17 +82,26 @@ red_black_tree::insert(&mut tree, 100, 40);
 red_black_tree::insert(&mut tree, 120, 10);
 red_black_tree::insert(&mut tree, 90, 5);
 
+// Check if key exists.
+let containsKey = red_black_tree::contains_key(&tree, 100);
+
+// Get values.
+let firstValue = red_black_tree::first_value_at(&tree, 100);
+let allValue = red_black_tree::values_at(&tree, 100);
+
+// Get tree metadata.
+let isEmpty = red_black_tree::is_empty(&tree);
+let keyCount = red_black_tree::key_count(&tree);
+let valueCount = red_black_tree::value_count(&tree);
+
 // Get min/max
 let min = red_black_tree::min_key(&tree);
-assert!(min == 90, 0);
 let max = red_black_tree::max_key(&tree);
-assert!(max == 90, 0);
 
 // Delete values and keys.
 red_black_tree::delete_value(&mut tree, 100, 40);
 red_black_tree::delete_key(&mut tree, 90);
-let min = red_black_tree::min_key(&tree);
-assert!(min == 100, 0);
+
 ```
 
 ### Linked List ([Full Docs](docs/linked\_list.md))
