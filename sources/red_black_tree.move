@@ -60,7 +60,7 @@ module ferum_std::red_black_tree {
     use std::string::{Self, String};
     #[test_only]
     use ferum_std::math::max_value_u128;
-    use ferum_std::linked_list::{LinkedList, ListPosition};
+    use ferum_std::linked_list::{LinkedList};
     use ferum_std::linked_list;
 
     //
