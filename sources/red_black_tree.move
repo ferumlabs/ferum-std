@@ -203,6 +203,13 @@ module ferum_std::red_black_tree {
         linked_list::as_vector(&node.values)
     }
 
+    /// Returns all the values with the given key as a doubly linked list.
+    public fun values_at_list<V: store + drop + copy>(tree: &Tree<V>, key: u128): LinkedList<V> {
+        assert!(contains_key(tree, key), KEY_NOT_FOUND);
+        let node = get_node(tree, key);
+        node.values
+    }
+
     /// Returns the maximum key in the tree, if one exists.
     public fun max_key<V: store + drop + copy>(tree: &Tree<V>): u128 {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
