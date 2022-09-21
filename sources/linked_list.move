@@ -227,19 +227,18 @@ module ferum_std::linked_list {
     }
 
     /// Returns true if there is another element left in the iterator.
-    public fun has_next<V: store + copy + drop>(position: ListPosition<V>): bool {
+    public fun has_next<V: store + copy + drop>(position: &ListPosition<V>): bool {
         !position.completed
     }
 
-    /// Returns the next value and next position.
-    public fun get_next<V: store + copy + drop>(list: &LinkedList<V>, position: ListPosition<V>): (V, ListPosition<V>) {
+    /// Returns the next value, and updates the current position.
+    public fun get_next<V: store + copy + drop>(list: &LinkedList<V>, position: &mut ListPosition<V>): V {
         assert!(has_next(position), MUST_HAVE_NEXT_VALUE);
         let node = get_node(list, position.currentKey);
-        (node.value, ListPosition<V> {
-            currentKey: node.nextKey,
-            hasNextKey: if (position.hasNextKey) get_node(list, node.nextKey).nextKeyIsSet else false,
-            completed: !position.hasNextKey,
-        })
+        position.currentKey = node.nextKey;
+        position.completed = !position.hasNextKey;
+        position.hasNextKey = if (position.hasNextKey) get_node(list, node.nextKey).nextKeyIsSet else false;
+        node.value
     }
 
     /// Empties out the list and drops all values.
@@ -321,11 +320,11 @@ module ferum_std::linked_list {
         add(&mut list, 1);
 
         // First value.
-        let position = iterator(&list);
-        assert!(has_next(position), 0);
-        let (value, nextPosition) = get_next(&list, position);
+        let iterator = iterator(&list);
+        assert!(has_next(&iterator), 0);
+        let value = get_next(&list, &mut iterator);
         assert!(value == 1, 0);
-        assert!(!has_next(nextPosition), 0);
+        assert!(!has_next(&iterator), 0);
 
         move_to(signer, list);
     }
@@ -335,9 +334,9 @@ module ferum_std::linked_list {
     fun test_list_iteration_invalid_call_to_next(signer: &signer) {
         let list = new<u128>();
         add(&mut list, 1);
-        let position = iterator(&list);
-        let (_, nextPosition) = get_next(&list, position);
-        get_next(&list, nextPosition);
+        let iterator = iterator(&list);
+        get_next(&list, &mut iterator);
+        get_next(&list, &mut iterator);
         move_to(signer, list);
     }
 
@@ -348,16 +347,16 @@ module ferum_std::linked_list {
         add(&mut list, 2);
 
         // First value.
-        let position = iterator(&list);
-        assert!(has_next(position), 0);
-        let (value, nextPosition) = get_next(&list, position);
+        let iterator = iterator(&list);
+        assert!(has_next(&iterator), 0);
+        let value = get_next(&list, &mut iterator);
         assert!(value == 1, 0);
-        assert!(has_next(nextPosition), 0);
+        assert!(has_next(&iterator), 0);
 
         // Second value.
-        let (value, nextPosition) = get_next(&list, nextPosition);
+        let value = get_next(&list, &mut iterator);
         assert!(value == 2, 0);
-        assert!(!has_next(nextPosition), 0);
+        assert!(!has_next(&iterator), 0);
 
         move_to(signer, list);
     }
@@ -371,28 +370,29 @@ module ferum_std::linked_list {
         add(&mut list, 1);
 
         // First value.
-        let position = iterator(&list);
-        assert!(has_next(position), 0);
-        let (value, nextPosition) = get_next(&list, position);
+        let iterator = iterator(&list);
+        assert!(has_next(&iterator), 0);
+        let value = get_next(&list, &mut iterator);
         assert!(value == 1, 0);
-        assert!(has_next(nextPosition), 0);
+        assert!(has_next(&iterator), 0);
 
         // Second value.
-        let (value, nextPosition) = get_next(&list, nextPosition);
+        let value = get_next(&list, &mut iterator);
         assert!(value == 2, 0);
-        assert!(has_next(nextPosition), 0);
+        assert!(has_next(&iterator), 0);
 
         // Third value.
-        let (value, nextPosition) = get_next(&list, nextPosition);
+        let value = get_next(&list, &mut iterator);
         assert!(value == 2, 0);
-        assert!(has_next(nextPosition), 0);
+        assert!(has_next(&iterator), 0);
 
         // Fourt value.
-        let (value, nextPosition) = get_next(&list, nextPosition);
+        let value = get_next(&list, &mut iterator);
         assert!(value == 1, 0);
 
+
         // Should not have any more values!
-        assert!(!has_next(nextPosition), 0);
+        assert!(!has_next(&iterator), 0);
 
         move_to(signer, list);
     }
