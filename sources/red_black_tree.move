@@ -60,7 +60,7 @@ module ferum_std::red_black_tree {
     use std::string::{Self, String};
     #[test_only]
     use ferum_std::math::max_value_u128;
-    use ferum_std::linked_list::{LinkedList};
+    use ferum_std::linked_list::{LinkedList, ListPosition};
     use ferum_std::linked_list;
 
     //
@@ -198,6 +198,13 @@ module ferum_std::red_black_tree {
         assert!(contains_key(tree, key), KEY_NOT_FOUND);
         let node = get_node(tree, key);
         linked_list::as_vector(&node.values)
+    }
+
+    /// Returns a linked list iterator for all values at the specified key. O(1) to find next value.
+    public fun values_iterator<V: store + drop + copy>(tree: &Tree<V>, key: u128): ListPosition<V> {
+        assert!(contains_key(tree, key), KEY_NOT_FOUND);
+        let node = get_node(tree, key);
+        linked_list::iterator(&node.values)
     }
 
     /// Returns the maximum key in the tree, if one exists.
@@ -440,7 +447,7 @@ module ferum_std::red_black_tree {
         !position.completed
     }
 
-    public fun next<V: store + drop + copy>(tree: &Tree<V>, position: TreePosition<V>) : (u128, TreePosition<V>) {
+    public fun get_next<V: store + drop + copy>(tree: &Tree<V>, position: TreePosition<V>) : (u128, TreePosition<V>) {
         let node = get_node(tree, position.currentKey);
         if (position.direction == ITERATION_DIRECTION_MIN) {
             if (node.key == tree.maxKey) {
@@ -1483,7 +1490,7 @@ module ferum_std::red_black_tree {
         assert_inorder_tree(&tree, b"10(B) root _ _: [0]");
         let nextPosition = min_iterator(&tree);
         assert!(has_next<u128>(nextPosition), 0);
-        let (key, nextPosition) = next(&tree, nextPosition);
+        let (key, nextPosition) = get_next(&tree, nextPosition);
         assert!(key == 10, 0);
         // Confirm iteration completed!
         assert!(!has_next(nextPosition), 0);
@@ -1506,31 +1513,31 @@ module ferum_std::red_black_tree {
 
         // First in order element.
         assert!(has_next<u128>(nextPosition), 0);
-        let (key, nextPosition) = next(&tree, nextPosition);
+        let (key, nextPosition) = get_next(&tree, nextPosition);
         assert!(key == 5, 0);
 
         assert!(has_next(nextPosition), 0);
-        let (key, nextPosition) = next(&tree, nextPosition);
+        let (key, nextPosition) = get_next(&tree, nextPosition);
         assert!(key == 10, 0);
 
         assert!(has_next(nextPosition), 0);
-        let (key, nextPosition) = next(&tree, nextPosition);
+        let (key, nextPosition) = get_next(&tree, nextPosition);
         assert!(key == 14, 0);
 
         assert!(has_next(nextPosition), 0);
-        let (key, nextPosition) = next(&tree, nextPosition);
+        let (key, nextPosition) = get_next(&tree, nextPosition);
         assert!(key == 15, 0);
 
         assert!(has_next(nextPosition), 0);
-        let (key, nextPosition) = next(&tree, nextPosition);
+        let (key, nextPosition) = get_next(&tree, nextPosition);
         assert!(key == 16, 0);
 
         assert!(has_next(nextPosition), 0);
-        let (key, nextPosition) = next(&tree, nextPosition);
+        let (key, nextPosition) = get_next(&tree, nextPosition);
         assert!(key == 17, 0);
 
         assert!(has_next(nextPosition), 0);
-        let (key, nextPosition) = next(&tree, nextPosition);
+        let (key, nextPosition) = get_next(&tree, nextPosition);
         assert!(key == 18, 0);
 
         // Confirm iteration completed!
@@ -1549,7 +1556,7 @@ module ferum_std::red_black_tree {
         };
         let iterator = min_iterator(&tree);
         while (has_next(iterator)) {
-            let (key, nextPosition) = next(&tree, iterator);
+            let (key, nextPosition) = get_next(&tree, iterator);
             iterator = nextPosition;
             assert!(key == length - i, 0);
             if (i > 0) {
@@ -1566,7 +1573,7 @@ module ferum_std::red_black_tree {
         assert_inorder_tree(&tree, b"10(B) root _ _: [0]");
         let nextPosition = max_iterator(&tree);
         assert!(has_next<u128>(nextPosition), 0);
-        let (key, nextPosition) = next(&tree, nextPosition);
+        let (key, nextPosition) = get_next(&tree, nextPosition);
         assert!(key == 10, 0);
         // Confirm iteration completed!
         assert!(!has_next(nextPosition), 0);
@@ -1588,31 +1595,31 @@ module ferum_std::red_black_tree {
         let nextPosition = max_iterator(&tree);
 
         assert!(has_next<u128>(nextPosition), 0);
-        let (key, nextPosition) = next(&tree, nextPosition);
+        let (key, nextPosition) = get_next(&tree, nextPosition);
         assert!(key == 18, 0);
 
         assert!(has_next(nextPosition), 0);
-        let (key, nextPosition) = next(&tree, nextPosition);
+        let (key, nextPosition) = get_next(&tree, nextPosition);
         assert!(key == 17, 0);
 
         assert!(has_next(nextPosition), 0);
-        let (key, nextPosition) = next(&tree, nextPosition);
+        let (key, nextPosition) = get_next(&tree, nextPosition);
         assert!(key == 16, 0);
 
         assert!(has_next(nextPosition), 0);
-        let (key, nextPosition) = next(&tree, nextPosition);
+        let (key, nextPosition) = get_next(&tree, nextPosition);
         assert!(key == 15, 0);
 
         assert!(has_next(nextPosition), 0);
-        let (key, nextPosition) = next(&tree, nextPosition);
+        let (key, nextPosition) = get_next(&tree, nextPosition);
         assert!(key == 14, 0);
 
         assert!(has_next(nextPosition), 0);
-        let (key, nextPosition) = next(&tree, nextPosition);
+        let (key, nextPosition) = get_next(&tree, nextPosition);
         assert!(key == 10, 0);
 
         assert!(has_next(nextPosition), 0);
-        let (key, nextPosition) = next(&tree, nextPosition);
+        let (key, nextPosition) = get_next(&tree, nextPosition);
         assert!(key == 5, 0);
 
         // Confirm iteration completed!
@@ -1631,7 +1638,7 @@ module ferum_std::red_black_tree {
         };
         let iterator = max_iterator(&tree);
         while (has_next(iterator)) {
-            let (key, nextPosition) = next(&tree, iterator);
+            let (key, nextPosition) = get_next(&tree, iterator);
             iterator = nextPosition;
             assert!(key == i - 1, 0);
             if (i > 0) {
