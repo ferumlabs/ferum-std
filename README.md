@@ -6,7 +6,7 @@ Move is an awesome langauge, but since the ecosystem is still early, it's missin
 
 * [`ferum_std::fixed_point_64`](./#fixed-point) — Implementation of FixedPoint, helping manage decimal points represented as integers.
 * [`ferum_std::red_black_tree`](./#red-black-tree) — Implementation of Red Black Trees, a self-balancing binary search tree.
-* [`ferum_std::linked_lisr`](./#linked-list) — Implementation of a Doubly Linked List.
+* [`ferum_std::linked_list`](./#linked-list) — Implementation of a Doubly Linked List.
 
 ## Installing
 
