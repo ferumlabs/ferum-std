@@ -62,8 +62,6 @@ module ferum_std::red_black_tree {
     use ferum_std::math::max_value_u128;
     use ferum_std::linked_list::{LinkedList};
     use ferum_std::linked_list;
-    #[test_only]
-    use aptos_std::debug::print;
 
     //
     // ERRORS
@@ -98,8 +96,10 @@ module ferum_std::red_black_tree {
     // ENUMS
     //
 
-    /// When using an iterator, encodes the direction towards the next minimum value.
-    const ITERATION_DIRECTION_INORDER: u8 = 0;
+    /// When using an iterator, encodes the direction towards the next minimum value i.e. inorder traversal.
+    const ITERATION_DIRECTION_MIN: u8 = 0;
+    /// When using an iterator, encodes the direction towards the next maximum value i.e. reverse inorder traversal.
+    const ITERATION_DIRECTION_MAX: u8 = 1;
 
     //
     // STRUCTS
@@ -132,6 +132,7 @@ module ferum_std::red_black_tree {
         isRed: bool,
     }
 
+    /// Used for traversal the tree in various directions.
     struct TreePosition<phantom V: store + drop + copy> has drop, copy {
         direction: u8,
         currentKey: u128,
@@ -413,17 +414,24 @@ module ferum_std::red_black_tree {
         node
     }
 
-
     //
     // ITERATION
     //
 
-    public fun inorder_iterator<V: store + drop + copy>(tree: &Tree<V>) : TreePosition<V> {
+    public fun min_iterator<V: store + drop + copy>(tree: &Tree<V>) : TreePosition<V> {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
-        let minKey = min_key(tree);
         TreePosition<V> {
-            direction: ITERATION_DIRECTION_INORDER,
-            currentKey: minKey,
+            direction: ITERATION_DIRECTION_MIN,
+            currentKey: min_key(tree),
+            completed: false,
+        }
+    }
+
+    public fun max_iterator<V: store + drop + copy>(tree: &Tree<V>) : TreePosition<V> {
+        assert!(!is_empty(tree), TREE_IS_EMPTY);
+        TreePosition<V> {
+            direction: ITERATION_DIRECTION_MAX,
+            currentKey: max_key(tree),
             completed: false,
         }
     }
@@ -434,32 +442,62 @@ module ferum_std::red_black_tree {
 
     public fun next<V: store + drop + copy>(tree: &Tree<V>, position: TreePosition<V>) : (u128, TreePosition<V>) {
         let node = get_node(tree, position.currentKey);
-        if (node.key == tree.maxKey) {
-            (node.key, TreePosition<V> {
-                direction: position.direction,
-                currentKey: 0,
-                completed: true,
-            })
-        } else if (node.rightChildNodeKeyIsSet) {
-            (node.key, TreePosition<V> {
-                direction: position.direction,
-                currentKey: get_min_node_starting_at_node(tree, node.rightChildNodeKey).key,
-                completed: false,
-            })
-        } else {
-            assert!(node.parentNodeKeyIsSet, EXPECTING_KEY_TO_BE_SET);
-            let parentNode = get_node(tree,node.parentNodeKey);
-            let originalNodeKey = node.key;
-            while (!is_left_child(node, parentNode)) {
-                node = parentNode;
+        if (position.direction == ITERATION_DIRECTION_MIN) {
+            if (node.key == tree.maxKey) {
+                (node.key, TreePosition<V> {
+                    direction: position.direction,
+                    currentKey: 0,
+                    completed: true,
+                })
+            } else if (node.rightChildNodeKeyIsSet) {
+                (node.key, TreePosition<V> {
+                    direction: position.direction,
+                    currentKey: get_min_node_starting_at_node(tree, node.rightChildNodeKey).key,
+                    completed: false,
+                })
+            } else {
                 assert!(node.parentNodeKeyIsSet, EXPECTING_KEY_TO_BE_SET);
-                parentNode = get_node(tree, node.parentNodeKey);
-            };
-            (originalNodeKey, TreePosition<V> {
-                direction: position.direction,
-                currentKey: node.parentNodeKey,
-                completed: false,
-            })
+                let parentNode = get_node(tree,node.parentNodeKey);
+                let originalNodeKey = node.key;
+                while (!is_left_child(node, parentNode)) {
+                    node = parentNode;
+                    assert!(node.parentNodeKeyIsSet, EXPECTING_KEY_TO_BE_SET);
+                    parentNode = get_node(tree, node.parentNodeKey);
+                };
+                (originalNodeKey, TreePosition<V> {
+                    direction: position.direction,
+                    currentKey: node.parentNodeKey,
+                    completed: false,
+                })
+            }
+        } else {
+            if (node.key == tree.minKey) {
+                (node.key, TreePosition<V> {
+                    direction: position.direction,
+                    currentKey: 0,
+                    completed: true,
+                })
+            } else if (node.leftChildNodeKeyIsSet) {
+                (node.key, TreePosition<V> {
+                    direction: position.direction,
+                    currentKey: get_max_node_starting_at_node(tree, node.leftChildNodeKey).key,
+                    completed: false,
+                })
+            } else {
+                assert!(node.parentNodeKeyIsSet, EXPECTING_KEY_TO_BE_SET);
+                let parentNode = get_node(tree,node.parentNodeKey);
+                let originalNodeKey = node.key;
+                while (!is_right_child(node, parentNode)) {
+                    node = parentNode;
+                    assert!(node.parentNodeKeyIsSet, EXPECTING_KEY_TO_BE_SET);
+                    parentNode = get_node(tree, node.parentNodeKey);
+                };
+                (originalNodeKey, TreePosition<V> {
+                    direction: position.direction,
+                    currentKey: node.parentNodeKey,
+                    completed: false,
+                })
+            }
         }
     }
 
@@ -1440,10 +1478,10 @@ module ferum_std::red_black_tree {
     //
 
     #[test(signer = @0x345)]
-    fun test_inorder_iterator_with_single_value(signer: signer) {
+    fun test_min_iterator_with_single_value(signer: signer) {
         let tree = test_tree(vector<u128>[10]);
         assert_inorder_tree(&tree, b"10(B) root _ _: [0]");
-        let nextPosition = inorder_iterator(&tree);
+        let nextPosition = min_iterator(&tree);
         assert!(has_next<u128>(nextPosition), 0);
         let (key, nextPosition) = next(&tree, nextPosition);
         assert!(key == 10, 0);
@@ -1453,7 +1491,7 @@ module ferum_std::red_black_tree {
     }
 
     #[test(signer = @0x345)]
-    fun test_inorder_iterator_with_multiple_values(signer: signer) {
+    fun test_min_iterator_with_multiple_values(signer: signer) {
         // Node is not root and successor is not an immediate child.
         //       14
         //      /  \
@@ -1464,7 +1502,7 @@ module ferum_std::red_black_tree {
         //          17
         let tree = test_tree(vector<u128>[10, 5, 15, 14, 18, 16, 17]);
 
-        let nextPosition = inorder_iterator(&tree);
+        let nextPosition = min_iterator(&tree);
 
         // First in order element.
         assert!(has_next<u128>(nextPosition), 0);
@@ -1501,7 +1539,7 @@ module ferum_std::red_black_tree {
     }
 
     #[test(signer = @0x345)]
-    fun test_inorder_iterator_large_value_set(signer: signer) {
+    fun test_min_iterator_large_value_set(signer: signer) {
         let tree = new<u128>();
         let i = 0;
         let length = 200;
@@ -1509,13 +1547,93 @@ module ferum_std::red_black_tree {
             insert(&mut tree, i, i);
             i = i + 1;
         };
-        print_tree(&tree);
-        let iterator = inorder_iterator(&tree);
+        let iterator = min_iterator(&tree);
         while (has_next(iterator)) {
             let (key, nextPosition) = next(&tree, iterator);
             iterator = nextPosition;
-            print(&key);
             assert!(key == length - i, 0);
+            if (i > 0) {
+                i = i - 1;
+            }
+        };
+        assert!(!has_next(iterator), 0);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_max_inorder_iterator_with_single_value(signer: signer) {
+        let tree = test_tree(vector<u128>[10]);
+        assert_inorder_tree(&tree, b"10(B) root _ _: [0]");
+        let nextPosition = max_iterator(&tree);
+        assert!(has_next<u128>(nextPosition), 0);
+        let (key, nextPosition) = next(&tree, nextPosition);
+        assert!(key == 10, 0);
+        // Confirm iteration completed!
+        assert!(!has_next(nextPosition), 0);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_max_inorder_iterator_with_multiple_values(signer: signer) {
+        // Node is not root and successor is not an immediate child.
+        //       14
+        //      /  \
+        //    10  (16)
+        //   /    /  \
+        //  5    15  18
+        //           /
+        //          17
+        let tree = test_tree(vector<u128>[10, 5, 15, 14, 18, 16, 17]);
+
+        let nextPosition = max_iterator(&tree);
+
+        assert!(has_next<u128>(nextPosition), 0);
+        let (key, nextPosition) = next(&tree, nextPosition);
+        assert!(key == 18, 0);
+
+        assert!(has_next(nextPosition), 0);
+        let (key, nextPosition) = next(&tree, nextPosition);
+        assert!(key == 17, 0);
+
+        assert!(has_next(nextPosition), 0);
+        let (key, nextPosition) = next(&tree, nextPosition);
+        assert!(key == 16, 0);
+
+        assert!(has_next(nextPosition), 0);
+        let (key, nextPosition) = next(&tree, nextPosition);
+        assert!(key == 15, 0);
+
+        assert!(has_next(nextPosition), 0);
+        let (key, nextPosition) = next(&tree, nextPosition);
+        assert!(key == 14, 0);
+
+        assert!(has_next(nextPosition), 0);
+        let (key, nextPosition) = next(&tree, nextPosition);
+        assert!(key == 10, 0);
+
+        assert!(has_next(nextPosition), 0);
+        let (key, nextPosition) = next(&tree, nextPosition);
+        assert!(key == 5, 0);
+
+        // Confirm iteration completed!
+        assert!(!has_next(nextPosition), 0);
+        move_to(&signer, tree)
+    }
+
+    #[test(signer = @0x345)]
+    fun test_max_inorder_iterator_large_value_set(signer: signer) {
+        let tree = new<u128>();
+        let i = 0;
+        let length = 200;
+        while (i < length) {
+            insert(&mut tree, i, i);
+            i = i + 1;
+        };
+        let iterator = max_iterator(&tree);
+        while (has_next(iterator)) {
+            let (key, nextPosition) = next(&tree, iterator);
+            iterator = nextPosition;
+            assert!(key == i - 1, 0);
             if (i > 0) {
                 i = i - 1;
             }
