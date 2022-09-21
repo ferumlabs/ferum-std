@@ -65,19 +65,20 @@ module ferum_std::linked_list {
     const KEY_NOT_FOUND: u64 = 1;
     /// Thrown when a duplicate key is added to the list.
     const DUPLICATE_KEY: u64 = 2;
-    /// Thrown when a trying to perform an operation that requires a list to have elements but it
-    /// doesn't.
+    /// Thrown when a trying to perform an operation that requires a list to have elements but it doesn't.
     const EMPTY_LIST: u64 = 3;
     /// Thrown when a value being searched for is not found.
     const VALUE_NOT_FOUND: u64 = 4;
+    /// Thrown when attempting to iterate beyond the limit of the linked list.
+    const MUST_HAVE_NEXT_VALUE: u64 = 5;
 
     struct Node<V: store + copy + drop> has store, drop {
         key: u128,
         value: V,
-        next: u128,
-        nextIsSet: bool,
-        prev: u128,
-        prevIsSet: bool,
+        nextKey: u128,
+        nextKeyIsSet: bool,
+        prevKey: u128,
+        prevKeyIsSet: bool,
     }
 
     /// Struct representing the linked list.
@@ -88,6 +89,17 @@ module ferum_std::linked_list {
         length: u128,
         head: u128,
         tail: u128,
+    }
+
+    /// Used to represent a position within a doubly linked list during iteration.
+    struct Position<phantom V: store + copy + drop> has store, copy, drop {
+        currentKey: u128,
+        hasNextKey: bool,
+        // The first time next(..) is called, the first value is returned; in other words, position is a leading pointer.
+        // Without having completed flag, it would be hard to know weather the iteration has completed. For example, in
+        // a list with a single element, hasNextKey would be set to false, so it would be impossible to know if iteration
+        // has come to a stop.
+        completed: bool,
     }
 
     /// Initialize a new list.
@@ -120,18 +132,18 @@ module ferum_std::linked_list {
         let node = Node{
             key,
             value,
-            next: 0,
-            nextIsSet: false,
-            prev: 0,
-            prevIsSet: false,
+            nextKey: 0,
+            nextKeyIsSet: false,
+            prevKey: 0,
+            prevKeyIsSet: false,
         };
         if (list.length > 0) {
-            node.prevIsSet = true;
-            node.prev = list.tail;
+            node.prevKeyIsSet = true;
+            node.prevKey = list.tail;
 
             let tail = table::borrow_mut(&mut list.nodes, list.tail);
-            tail.next = key;
-            tail.nextIsSet = true;
+            tail.nextKey = key;
+            tail.nextKeyIsSet = true;
 
             list.tail = key;
         } else {
@@ -161,14 +173,14 @@ module ferum_std::linked_list {
 
     /// Remove the last element of the list. If the list is empty, will throw an error.
     public fun remove_last<V: store + copy + drop>(list: &mut LinkedList<V>) {
-        assert!(list.length > 0, EMPTY_LIST);
+        assert!(!is_empty(list), EMPTY_LIST);
         let tailKey = list.tail;
         remove_key(list, tailKey);
     }
 
     /// Get a reference to the first element of the list.
     public fun borrow_first<V: store + copy + drop>(list: &LinkedList<V>): &V {
-        assert!(list.length > 0, EMPTY_LIST);
+        assert!(!is_empty(list), EMPTY_LIST);
         let node = table::borrow(&list.nodes, list.head);
         &node.value
     }
@@ -183,22 +195,54 @@ module ferum_std::linked_list {
         list.length
     }
 
+    /// Returns true if empty.
+    public fun is_empty<V: store + copy + drop>(list: &LinkedList<V>): bool {
+        return list.length == 0
+    }
+
     /// Returns the list as a vector.
     public fun as_vector<V: store + copy + drop>(list: &LinkedList<V>): vector<V> {
         let out = vector::empty();
         if (length(list) == 0) {
             return out
         };
-
         let curr = get_node(list, list.head);
         vector::push_back(&mut out, curr.value);
-        while (curr.nextIsSet) {
-            curr = get_node(list, curr.next);
+        while (curr.nextKeyIsSet) {
+            curr = get_node(list, curr.nextKey);
             vector::push_back(&mut out, curr.value);
         };
         out
     }
 
+    /// Returns a left to right iterator. First time you call next(...) will return the first value.
+    /// Updating the list while iterating will abort.
+    public fun iterator<V: store + copy + drop>(list: &LinkedList<V>): Position<V> {
+        assert!(!is_empty(list), EMPTY_LIST);
+        Position<V> {
+            currentKey: list.head,
+            hasNextKey: list.head != list.tail,
+            completed: false,
+        }
+    }
+
+    /// Returns true if there is another element left in the iterator.
+    public fun has_next<V: store + copy + drop>(position: Position<V>): bool {
+        !position.completed
+    }
+
+    /// Returns the next value and next position.
+    public fun get_next<V: store + copy + drop>(list: &LinkedList<V>, position: Position<V>): (V, Position<V>) {
+        assert!(has_next(position), MUST_HAVE_NEXT_VALUE);
+        let node = get_node(list, position.currentKey);
+        (node.value, Position<V> {
+            currentKey: node.nextKey,
+            hasNextKey: if (position.hasNextKey) get_node(list, node.nextKey).nextKeyIsSet else false,
+            completed: !position.hasNextKey,
+        })
+    }
+
+    /// Empties out the list and drops all values.
     public fun drop<V: store + copy + drop>(list: LinkedList<V>) {
         empty_list(&mut list);
         let LinkedList<V>{
@@ -212,6 +256,10 @@ module ferum_std::linked_list {
         table::destroy_empty(nodes);
         table::destroy_empty(nodeKeys);
     }
+
+    //
+    // Private Helpers
+    //
 
     fun empty_list<V: store + copy + drop>(list: &mut LinkedList<V>) {
         while (length(list) > 0) {
@@ -237,26 +285,113 @@ module ferum_std::linked_list {
         };
 
         // Update prev node.
-        if (node.prevIsSet) {
-            let prev = table::borrow_mut(&mut list.nodes, node.prev);
-            prev.nextIsSet = node.nextIsSet;
-            prev.next = node.next;
+        if (node.prevKeyIsSet) {
+            let prev = table::borrow_mut(&mut list.nodes, node.prevKey);
+            prev.nextKeyIsSet = node.nextKeyIsSet;
+            prev.nextKey = node.nextKey;
         };
 
         // Update next node.
-        if (node.nextIsSet) {
-            let next = table::borrow_mut(&mut list.nodes, node.next);
-            next.prevIsSet = node.prevIsSet;
-            next.prev = node.prev;
+        if (node.nextKeyIsSet) {
+            let next = table::borrow_mut(&mut list.nodes, node.nextKey);
+            next.prevKeyIsSet = node.prevKeyIsSet;
+            next.prevKey = node.prevKey;
         };
 
         // Update the list.
         if (list.head == key) {
-            list.head = node.next;
+            list.head = node.nextKey;
         };
         if (list.tail == key) {
-            list.tail = node.prev;
+            list.tail = node.prevKey;
         };
+    }
+
+    #[test(signer = @0xCAFE)]
+    #[expected_failure(abort_code = 3)]
+    fun test_list_iteration_with_empty_tree(signer: &signer) {
+        let list = new<u128>();
+        iterator(&list);
+        move_to(signer, list);
+    }
+
+    #[test(signer = @0xCAFE)]
+    fun test_list_iteration_with_one_value(signer: &signer) {
+        let list = new<u128>();
+        add(&mut list, 1);
+
+        // First value.
+        let position = iterator(&list);
+        let (value, nextPosition) = get_next(&list, position);
+        assert!(value == 1, 0);
+        assert!(!has_next(nextPosition), 0);
+
+        move_to(signer, list);
+    }
+
+    #[test(signer = @0xCAFE)]
+    #[expected_failure(abort_code = 5)]
+    fun test_list_iteration_invalid_call_to_next(signer: &signer) {
+        let list = new<u128>();
+        add(&mut list, 1);
+        let position = iterator(&list);
+        let (_, nextPosition) = get_next(&list, position);
+        get_next(&list, nextPosition);
+        move_to(signer, list);
+    }
+
+    #[test(signer = @0xCAFE)]
+    fun test_list_iteration_with_two_values(signer: &signer) {
+        let list = new<u128>();
+        add(&mut list, 1);
+        add(&mut list, 2);
+
+        // First value.
+        let position = iterator(&list);
+        let (value, nextPosition) = get_next(&list, position);
+        assert!(value == 1, 0);
+        assert!(has_next(nextPosition), 0);
+
+        // Second value.
+        let (value, nextPosition) = get_next(&list, nextPosition);
+        assert!(value == 2, 0);
+        assert!(!has_next(nextPosition), 0);
+
+        move_to(signer, list);
+    }
+
+    #[test(signer = @0xCAFE)]
+    fun test_list_iteration_with_many_values(signer: &signer) {
+        let list = new<u128>();
+        add(&mut list, 1);
+        add(&mut list, 2);
+        add(&mut list, 2);
+        add(&mut list, 1);
+
+        // First value.
+        let position = iterator(&list);
+        let (value, nextPosition) = get_next(&list, position);
+        assert!(value == 1, 0);
+        assert!(has_next(nextPosition), 0);
+
+        // Second value.
+        let (value, nextPosition) = get_next(&list, nextPosition);
+        assert!(value == 2, 0);
+        assert!(has_next(nextPosition), 0);
+
+        // Third value.
+        let (value, nextPosition) = get_next(&list, nextPosition);
+        assert!(value == 2, 0);
+        assert!(has_next(nextPosition), 0);
+
+        // Fourt value.
+        let (value, nextPosition) = get_next(&list, nextPosition);
+        assert!(value == 1, 0);
+
+        // Should not have any more values!
+        assert!(!has_next(nextPosition), 0);
+
+        move_to(signer, list);
     }
 
     #[test(signer = @0xCAFE)]
@@ -393,9 +528,9 @@ module ferum_std::linked_list {
 
         let curr = get_node(list, list.head);
         string::append(&mut output, to_string_u128(curr.value));
-        while (curr.nextIsSet) {
+        while (curr.nextKeyIsSet) {
             string::append_utf8(&mut output, b" <->");
-            curr = get_node(list, curr.next);
+            curr = get_node(list, curr.nextKey);
             string::append_utf8(&mut output, b" ");
             string::append(&mut output, to_string_u128(curr.value));
         };
