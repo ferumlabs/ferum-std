@@ -201,10 +201,10 @@ module ferum_std::red_black_tree {
     }
 
     /// Returns a linked list iterator for all values at the specified key. O(1) to find next value.
-    public fun values_iterator<V: store + drop + copy>(tree: &Tree<V>, key: u128): ListPosition<V> {
+    public fun values_at_list<V: store + drop + copy>(tree: &Tree<V>, key: u128): &LinkedList<V> {
         assert!(contains_key(tree, key), KEY_NOT_FOUND);
         let node = get_node(tree, key);
-        linked_list::iterator(&node.values)
+        &node.values
     }
 
     /// Returns the maximum key in the tree, if one exists.
