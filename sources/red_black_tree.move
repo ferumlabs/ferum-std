@@ -204,10 +204,10 @@ module ferum_std::red_black_tree {
     }
 
     /// Returns all the values with the given key as a doubly linked list.
-    public fun values_at_list<V: store + drop + copy>(tree: &Tree<V>, key: u128): LinkedList<V> {
+    public fun values_at_list<V: store + drop + copy>(tree: &Tree<V>, key: u128): &LinkedList<V> {
         assert!(contains_key(tree, key), KEY_NOT_FOUND);
         let node = get_node(tree, key);
-        node.values
+        &node.values
     }
 
     /// Returns the maximum key in the tree, if one exists.
