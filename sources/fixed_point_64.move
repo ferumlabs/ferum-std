@@ -91,7 +91,7 @@ module ferum_std::fixed_point_64 {
         FixedPoint64 { val }
     }
 
-    /// Return then underlying value of the FixedPoint.
+    /// Returns the underlying value of the FixedPoint.
     public fun value(a: FixedPoint64): u128 {
         a.val
     }

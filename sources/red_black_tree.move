@@ -93,7 +93,7 @@ module ferum_std::red_black_tree {
     //
     // STRUCTS
     //
-    struct Tree<V: store + copy + drop> has key {
+    struct Tree<V: store + copy + drop> has key, store {
         // Counts the total number of unique keys in the tree.
         keyCount: u128,
         // Counts the total number of values in the tree; valueCount >= keyCount.
