@@ -92,13 +92,13 @@ module ferum_std::linked_list {
     }
 
     /// Used to represent a position within a doubly linked list during iteration.
-    struct Position<phantom V: store + copy + drop> has store, copy, drop {
+    struct ListPosition<phantom V: store + copy + drop> has store, copy, drop {
         currentKey: u128,
         hasNextKey: bool,
         // The first time next(..) is called, the first value is returned; in other words, position is a leading pointer.
-        // Without having completed flag, it would be hard to know weather the iteration has completed. For example, in
-        // a list with a single element, hasNextKey would be set to false, so it would be impossible to know if iteration
-        // has come to a stop.
+        // Without having completed flag, it would be hard to handle the last element. For example, in a list with a
+        // single element, hasNextKey would be set to false, so it would be impossible to know if iteration has come to
+        // a stop.
         completed: bool,
     }
 
@@ -217,9 +217,9 @@ module ferum_std::linked_list {
 
     /// Returns a left to right iterator. First time you call next(...) will return the first value.
     /// Updating the list while iterating will abort.
-    public fun iterator<V: store + copy + drop>(list: &LinkedList<V>): Position<V> {
+    public fun iterator<V: store + copy + drop>(list: &LinkedList<V>): ListPosition<V> {
         assert!(!is_empty(list), EMPTY_LIST);
-        Position<V> {
+        ListPosition<V> {
             currentKey: list.head,
             hasNextKey: list.head != list.tail,
             completed: false,
@@ -227,15 +227,15 @@ module ferum_std::linked_list {
     }
 
     /// Returns true if there is another element left in the iterator.
-    public fun has_next<V: store + copy + drop>(position: Position<V>): bool {
+    public fun has_next<V: store + copy + drop>(position: ListPosition<V>): bool {
         !position.completed
     }
 
     /// Returns the next value and next position.
-    public fun get_next<V: store + copy + drop>(list: &LinkedList<V>, position: Position<V>): (V, Position<V>) {
+    public fun get_next<V: store + copy + drop>(list: &LinkedList<V>, position: ListPosition<V>): (V, ListPosition<V>) {
         assert!(has_next(position), MUST_HAVE_NEXT_VALUE);
         let node = get_node(list, position.currentKey);
-        (node.value, Position<V> {
+        (node.value, ListPosition<V> {
             currentKey: node.nextKey,
             hasNextKey: if (position.hasNextKey) get_node(list, node.nextKey).nextKeyIsSet else false,
             completed: !position.hasNextKey,
@@ -322,6 +322,7 @@ module ferum_std::linked_list {
 
         // First value.
         let position = iterator(&list);
+        assert!(has_next(position), 0);
         let (value, nextPosition) = get_next(&list, position);
         assert!(value == 1, 0);
         assert!(!has_next(nextPosition), 0);
@@ -348,6 +349,7 @@ module ferum_std::linked_list {
 
         // First value.
         let position = iterator(&list);
+        assert!(has_next(position), 0);
         let (value, nextPosition) = get_next(&list, position);
         assert!(value == 1, 0);
         assert!(has_next(nextPosition), 0);
@@ -370,6 +372,7 @@ module ferum_std::linked_list {
 
         // First value.
         let position = iterator(&list);
+        assert!(has_next(position), 0);
         let (value, nextPosition) = get_next(&list, position);
         assert!(value == 1, 0);
         assert!(has_next(nextPosition), 0);
