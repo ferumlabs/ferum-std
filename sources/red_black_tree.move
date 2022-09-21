@@ -1561,7 +1561,7 @@ module ferum_std::red_black_tree {
     }
 
     #[test(signer = @0x345)]
-    fun test_max_inorder_iterator_with_single_value(signer: signer) {
+    fun test_max_iterator_with_single_value(signer: signer) {
         let tree = test_tree(vector<u128>[10]);
         assert_inorder_tree(&tree, b"10(B) root _ _: [0]");
         let nextPosition = max_iterator(&tree);
@@ -1574,7 +1574,7 @@ module ferum_std::red_black_tree {
     }
 
     #[test(signer = @0x345)]
-    fun test_max_inorder_iterator_with_multiple_values(signer: signer) {
+    fun test_max_iterator_with_multiple_values(signer: signer) {
         // Node is not root and successor is not an immediate child.
         //       14
         //      /  \
@@ -1621,7 +1621,7 @@ module ferum_std::red_black_tree {
     }
 
     #[test(signer = @0x345)]
-    fun test_max_inorder_iterator_large_value_set(signer: signer) {
+    fun test_max_iterator_large_value_set(signer: signer) {
         let tree = new<u128>();
         let i = 0;
         let length = 200;
