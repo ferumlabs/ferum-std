@@ -140,3 +140,13 @@ print_list(&list) // 50 <-> 20 <-> 200
 ## Contributing
 
 We welcome all contributions; just make sure that you add unit tests to all new code added, and run `aptos move test` before making a pull request. All updates must be backwards compatible.
+
+## Deployment Instructions
+
+All active development takes place on the main branch. During a release, first all main branch commits get rebased on top of devnet branch. Once rebased, publish the module either under the same account if backwards compatible, or a new account if not. Developers can choose to downgrade to a previous version to stay backwards compatible.
+
+1. Update your aptos CLI and make sure you have [latest](https://github.com/aptos-labs/aptos-core/releases/); usually breaks if you don't! 
+2. `git checkout main; git pull --rebase` to get latest commits on the main branch.
+3. `git checkout devnet; git rebase main devnet` to rebase all commits from main to devnet
+4. `aptos move publish --private-key 0xPRIVATE_KEY --max-gas 10000 --url https://fullnode.devnet.aptoslabs.com/v1 --included-artifacts none` to publish the module. 
+5. `git push` to synchronize remote branch once it's been properly published.
