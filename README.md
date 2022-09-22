@@ -121,6 +121,12 @@ linked_list::add(&mut list, 100); // Duplicate
 
 print_list(&list) // 100 <-> 50 <-> 20 <-> 200 <-> 100
 
+// Iterate through the list, left to right.
+let iterator = iterator(&list);
+while (linked_list::has_next(&iterator)) {
+  let value = linked_list::get_next(&list, &mut iterator);
+};
+
 // Get length of list.
 linked_list::length(&list) // == 4
 
