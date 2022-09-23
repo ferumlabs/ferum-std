@@ -36,6 +36,12 @@
 ///
 /// print_list(&list) // 100 <-> 50 <-> 20 <-> 200 <-> 100
 ///
+/// // Iterate through the list, left to right.
+/// let iterator = iterator(&list);
+/// while (linked_list::has_next(&iterator)) {
+///  let value = linked_list::get_next(&list, &mut iterator);
+/// };
+///
 /// // Get length of list.
 /// linked_list::length(&list) // == 4
 ///
@@ -369,12 +375,17 @@ module ferum_std::linked_list {
         add(&mut list, 2);
         add(&mut list, 1);
 
-        // First value.
+        // Iterate through the list, one by one.
         let iterator = iterator(&list);
+        while (has_next(&iterator)) {
+            let v = get_next(&list, &mut iterator);
+        };
+
         assert!(has_next(&iterator), 0);
         let value = get_next(&list, &mut iterator);
         assert!(value == 1, 0);
         assert!(has_next(&iterator), 0);
+
 
         // Second value.
         let value = get_next(&list, &mut iterator);
