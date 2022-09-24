@@ -375,17 +375,13 @@ module ferum_std::linked_list {
         add(&mut list, 2);
         add(&mut list, 1);
 
-        // Iterate through the list, one by one.
-        let iterator = iterator(&list);
-        while (has_next(&iterator)) {
-            let v = get_next(&list, &mut iterator);
-        };
-
+        let  iterator = iterator(&list);
+        
+        // First value.
         assert!(has_next(&iterator), 0);
         let value = get_next(&list, &mut iterator);
         assert!(value == 1, 0);
         assert!(has_next(&iterator), 0);
-
 
         // Second value.
         let value = get_next(&list, &mut iterator);
