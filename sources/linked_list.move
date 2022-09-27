@@ -132,6 +132,12 @@ module ferum_std::linked_list {
 
     /// Add a value to the list.
     public fun add<V: store + copy + drop>(list: &mut LinkedList<V>, value: V) {
+        let end = list.length;
+        insert_at(list, value, end);
+    }
+
+    /// Inserts a value to the given index.
+    public fun insert_at<V: store + copy + drop>(list: &mut LinkedList<V>, value: V, idx: u128) {
         let key = list.keyCounter;
         list.keyCounter = list.keyCounter + 1;
 
@@ -146,18 +152,58 @@ module ferum_std::linked_list {
             prevKey: 0,
             prevKeyIsSet: false,
         };
-        if (list.length > 0) {
+
+        if (list.length == 0) {
+            list.head = key;
+            list.tail = key;
+
+            table::add(&mut list.nodes, key, node);
+            list.length = list.length + 1;
+            return
+        };
+
+        if (idx == list.length) {
+            // We're inserting at the end of a non empty list.
             node.prevKeyIsSet = true;
             node.prevKey = list.tail;
-
             let tail = table::borrow_mut(&mut list.nodes, list.tail);
+            list.tail = key;
             tail.nextKey = key;
             tail.nextKeyIsSet = true;
 
-            list.tail = key;
-        } else {
-            list.head = key;
-            list.tail = key;
+            table::add(&mut list.nodes, key, node);
+            list.length = list.length + 1;
+            return
+        };
+
+        let i = 0;
+        let it = iterator(list);
+        while (i <= list.length) {
+            if (i == idx) {
+                if (i < list.length) {
+                    // Inserting at the beginning or middle of list.
+                    let targetKey = peek_next_node(list, &it).key;
+                    let targetNode = table::borrow_mut(&mut list.nodes, targetKey);
+                    let targetNodePrevKey = targetNode.prevKey;
+                    let targetNodePrevKeyIsSet = targetNode.prevKeyIsSet;
+                    targetNode.prevKey = key;
+                    targetNode.prevKeyIsSet = true;
+                    if (targetNodePrevKeyIsSet) {
+                        let targetNodePrev = table::borrow_mut(&mut list.nodes, targetNodePrevKey);
+                        targetNodePrev.nextKeyIsSet = true;
+                        targetNodePrev.nextKey = key;
+                    };
+
+                    node.nextKey = targetKey;
+                    node.nextKeyIsSet = true;
+                    if (i == 0) {
+                        list.head = key;
+                    }
+                };
+                break
+            };
+            get_next(list, &mut it);
+            i = i + 1;
         };
 
         table::add(&mut list.nodes, key, node);
@@ -257,6 +303,11 @@ module ferum_std::linked_list {
         node.value
     }
 
+    /// Returns a reference to the next value in the iterator. The iterator position is not updated.
+    public fun peek_next<V: store + copy + drop>(list: &LinkedList<V>, position: &ListPosition<V>): &V {
+        &peek_next_node(list, position).value
+    }
+
     /// Empties out the list and drops all values.
     public fun drop<V: store + copy + drop>(list: LinkedList<V>) {
         empty_list(&mut list);
@@ -275,6 +326,11 @@ module ferum_std::linked_list {
     //
     // Private Helpers
     //
+
+    fun peek_next_node<V: store + copy + drop>(list: &LinkedList<V>, position: &ListPosition<V>): &Node<V> {
+        assert!(has_next(position), MUST_HAVE_NEXT_VALUE);
+        get_node(list, position.currentKey)
+    }
 
     fun empty_list<V: store + copy + drop>(list: &mut LinkedList<V>) {
         while (length(list) > 0) {
@@ -322,16 +378,16 @@ module ferum_std::linked_list {
         };
     }
 
-    #[test(signer = @0xCAFE)]
+    #[test]
     #[expected_failure(abort_code = 3)]
-    fun test_list_iteration_with_empty_tree(signer: &signer) {
+    fun test_list_iteration_with_empty_tree() {
         let list = new<u128>();
         iterator(&list);
-        move_to(signer, list);
+        drop(list);
     }
 
-    #[test(signer = @0xCAFE)]
-    fun test_list_iteration_with_one_value(signer: &signer) {
+    #[test]
+    fun test_list_iteration_with_one_value() {
         let list = new<u128>();
         add(&mut list, 1);
 
@@ -342,22 +398,22 @@ module ferum_std::linked_list {
         assert!(value == 1, 0);
         assert!(!has_next(&iterator), 0);
 
-        move_to(signer, list);
+        drop(list);
     }
 
-    #[test(signer = @0xCAFE)]
+    #[test]
     #[expected_failure(abort_code = 5)]
-    fun test_list_iteration_invalid_call_to_next(signer: &signer) {
+    fun test_list_iteration_invalid_call_to_next() {
         let list = new<u128>();
         add(&mut list, 1);
         let iterator = iterator(&list);
         get_next(&list, &mut iterator);
         get_next(&list, &mut iterator);
-        move_to(signer, list);
+        drop(list);
     }
 
-    #[test(signer = @0xCAFE)]
-    fun test_list_iteration_with_two_values(signer: &signer) {
+    #[test]
+    fun test_list_iteration_with_two_values() {
         let list = new<u128>();
         add(&mut list, 1);
         add(&mut list, 2);
@@ -374,11 +430,11 @@ module ferum_std::linked_list {
         assert!(value == 2, 0);
         assert!(!has_next(&iterator), 0);
 
-        move_to(signer, list);
+        drop(list);
     }
 
-    #[test(signer = @0xCAFE)]
-    fun test_list_iteration_with_many_values(signer: &signer) {
+    #[test]
+    fun test_list_iteration_with_many_values() {
         let list = new<u128>();
         add(&mut list, 1);
         add(&mut list, 2);
@@ -411,11 +467,11 @@ module ferum_std::linked_list {
         // Should not have any more values!
         assert!(!has_next(&iterator), 0);
 
-        move_to(signer, list);
+        drop(list);
     }
 
-    #[test(signer = @0xCAFE)]
-    fun test_linked_list_duplicate_values(signer: &signer) {
+    #[test]
+    fun test_linked_list_duplicate_values() {
         let list = new<u128>();
         add(&mut list, 5);
         add(&mut list, 1);
@@ -433,11 +489,11 @@ module ferum_std::linked_list {
         remove_last(&mut list);
         assert_list(&list, b"5 <-> 4");
 
-        move_to(signer, list);
+        drop(list);
     }
 
-    #[test(signer = @0xCAFE)]
-    fun test_linked_list_all_duplicate_values(signer: &signer) {
+    #[test]
+    fun test_linked_list_all_duplicate_values() {
         let list = new<u128>();
         add(&mut list, 5);
         add(&mut list, 5);
@@ -459,11 +515,11 @@ module ferum_std::linked_list {
         remove_last(&mut list);
         assert_list(&list, b"");
 
-        move_to(signer, list);
+        drop(list);
     }
 
-    #[test(signer = @0xCAFE)]
-    fun test_linked_list_add_remove_first(signer: &signer) {
+    #[test]
+    fun test_linked_list_add_remove_first() {
         let list = new<u128>();
         add(&mut list, 5);
         add(&mut list, 1);
@@ -476,11 +532,28 @@ module ferum_std::linked_list {
         remove_first(&mut list);
         assert_list(&list, b"");
 
-        move_to(signer, list);
+        drop(list);
     }
 
-    #[test(signer = @0xCAFE)]
-    fun test_linked_list_add_remove_last(signer: &signer) {
+    #[test]
+    fun test_linked_list_insert_at() {
+        let list = new<u128>();
+        add(&mut list, 5);
+        add(&mut list, 1);
+        add(&mut list, 4);
+        assert_list(&list, b"5 <-> 1 <-> 4");
+        insert_at(&mut list, 7, 1);
+        assert_list(&list, b"5 <-> 7 <-> 1 <-> 4");
+        // insert_at(&mut list, 8, 0);
+        // assert_list(&list, b"8 <-> 5 <-> 7 <-> 1 <-> 4");
+        // insert_at(&mut list, 10, 5);
+        // assert_list(&list, b"8 <-> 5 <-> 7 <-> 1 <-> 4 <-> 10");
+
+        drop(list);
+    }
+
+    #[test]
+    fun test_linked_list_add_remove_last() {
         let list = new<u128>();
         add(&mut list, 5);
         add(&mut list, 1);
@@ -493,11 +566,11 @@ module ferum_std::linked_list {
         remove_last(&mut list);
         assert_list(&list, b"");
 
-        move_to(signer, list);
+        drop(list);
     }
 
-    #[test(signer = @0xCAFE)]
-    fun test_linked_list_add_remove_value(signer: &signer) {
+    #[test]
+    fun test_linked_list_add_remove_value() {
         let list = new<u128>();
         add(&mut list, 5);
         add(&mut list, 1);
@@ -507,26 +580,30 @@ module ferum_std::linked_list {
         let listStr = *string::bytes(&list_as_string(&list));
         assert!(listStr == b"5 <-> 1 <-> 4" || listStr == b"5 <-> 4 <-> 1", 0);
 
-        move_to(signer, list);
+        drop(list);
     }
 
-    #[test(signer = @0xCAFE)]
+    #[test]
     #[expected_failure]
-    fun test_linked_listremove_last_on_empty(signer: &signer) {
+    fun test_linked_listremove_last_on_empty() {
         let list = new<u128>();
         remove_last(&mut list);
 
-        move_to(signer, list);
+        drop(list);
     }
 
-    #[test(signer = @0xCAFE)]
+    #[test]
     #[expected_failure]
-    fun test_linked_listremove_first_on_empty(signer: &signer) {
+    fun test_linked_listremove_first_on_empty() {
         let list = new<u128>();
         remove_first(&mut list);
 
-        move_to(signer, list);
+        drop(list);
     }
+
+    //
+    // Test helpers.
+    //
 
     #[test_only]
     fun assert_list(list: &LinkedList<u128>, expected: vector<u8>) {

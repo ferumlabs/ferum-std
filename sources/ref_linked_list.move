@@ -151,6 +151,12 @@ module ferum_std::ref_linked_list {
 
     /// Add a value to the list.
     public fun add<V: store>(list: &mut LinkedList<V>, value: V) {
+        let end = list.length;
+        insert_at(list, value, end);
+    }
+
+    /// Inserts a value to the given index.
+    public fun insert_at<V: store>(list: &mut LinkedList<V>, value: V, idx: u128) {
         let key = list.keyCounter;
         list.keyCounter = list.keyCounter + 1;
 
@@ -162,18 +168,58 @@ module ferum_std::ref_linked_list {
             prevKey: 0,
             prevKeyIsSet: false,
         };
-        if (list.length > 0) {
+
+        if (list.length == 0) {
+            list.head = key;
+            list.tail = key;
+
+            table::add(&mut list.nodes, key, node);
+            list.length = list.length + 1;
+            return
+        };
+
+        if (idx == list.length) {
+            // We're inserting at the end of the list.
             node.prevKeyIsSet = true;
             node.prevKey = list.tail;
-
             let tail = table::borrow_mut(&mut list.nodes, list.tail);
+            list.tail = key;
             tail.nextKey = key;
             tail.nextKeyIsSet = true;
 
-            list.tail = key;
-        } else {
-            list.head = key;
-            list.tail = key;
+            table::add(&mut list.nodes, key, node);
+            list.length = list.length + 1;
+            return
+        };
+
+        let i = 0;
+        let it = iterator(list);
+        while (i <= list.length) {
+            if (i == idx) {
+                if (i < list.length) {
+                    // Inserting at the beginning or middle of list.
+                    let targetKey = peek_next_node(list, &it).key;
+                    let targetNode = table::borrow_mut(&mut list.nodes, targetKey);
+                    let targetNodePrevKey = targetNode.prevKey;
+                    let targetNodePrevKeyIsSet = targetNode.prevKeyIsSet;
+                    targetNode.prevKey = key;
+                    targetNode.prevKeyIsSet = true;
+                    if (targetNodePrevKeyIsSet) {
+                        let targetNodePrev = table::borrow_mut(&mut list.nodes, targetNodePrevKey);
+                        targetNodePrev.nextKeyIsSet = true;
+                        targetNodePrev.nextKey = key;
+                    };
+
+                    node.nextKey = targetKey;
+                    node.nextKeyIsSet = true;
+                    if (i == 0) {
+                        list.head = key;
+                    }
+                };
+                break
+            };
+            skip_next(list, &mut it);
+            i = i + 1;
         };
 
         table::add(&mut list.nodes, key, node);
@@ -304,8 +350,7 @@ module ferum_std::ref_linked_list {
     /// Returns a reference to the next value in the iterator. Value isn't removed nor is the iterator position
     /// updated.
     public fun peek_next<V: store>(list: &LinkedList<V>, position: &ListPosition<V>): &V {
-        assert!(has_next(position), MUST_HAVE_NEXT_VALUE);
-        &get_node_ref(list, position.currentKey).value
+        &peek_next_node(list, position).value
     }
 
     //
