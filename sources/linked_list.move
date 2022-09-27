@@ -280,7 +280,13 @@ module ferum_std::linked_list {
     /// Returns a left to right iterator. First time you call next(...) will return the first value.
     /// Updating the list while iterating will abort.
     public fun iterator<V: store + copy + drop>(list: &LinkedList<V>): ListPosition<V> {
-        assert!(!is_empty(list), EMPTY_LIST);
+        if (is_empty(list)) {
+            return ListPosition<V> {
+                currentKey: 0,
+                hasNextKey: false,
+                completed: true,
+            }
+        };
         ListPosition<V> {
             currentKey: list.head,
             hasNextKey: list.head != list.tail,
@@ -379,10 +385,10 @@ module ferum_std::linked_list {
     }
 
     #[test]
-    #[expected_failure(abort_code = 3)]
-    fun test_list_iteration_with_empty_tree() {
+    fun test_list_iteration_with_empty_list() {
         let list = new<u128>();
-        iterator(&list);
+        let it = iterator(&list);
+        assert!(!has_next(&it), 0);
         drop(list);
     }
 
@@ -585,7 +591,7 @@ module ferum_std::linked_list {
 
     #[test]
     #[expected_failure]
-    fun test_linked_listremove_last_on_empty() {
+    fun test_linked_list_remove_last_on_empty() {
         let list = new<u128>();
         remove_last(&mut list);
 
@@ -594,7 +600,7 @@ module ferum_std::linked_list {
 
     #[test]
     #[expected_failure]
-    fun test_linked_listremove_first_on_empty() {
+    fun test_linked_list_remove_first_on_empty() {
         let list = new<u128>();
         remove_first(&mut list);
 
