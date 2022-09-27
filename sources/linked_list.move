@@ -186,16 +186,17 @@ module ferum_std::linked_list {
                     let targetNode = table::borrow_mut(&mut list.nodes, targetKey);
                     let targetNodePrevKey = targetNode.prevKey;
                     let targetNodePrevKeyIsSet = targetNode.prevKeyIsSet;
+                    node.nextKey = targetKey;
+                    node.nextKeyIsSet = true;
                     targetNode.prevKey = key;
                     targetNode.prevKeyIsSet = true;
                     if (targetNodePrevKeyIsSet) {
                         let targetNodePrev = table::borrow_mut(&mut list.nodes, targetNodePrevKey);
                         targetNodePrev.nextKeyIsSet = true;
                         targetNodePrev.nextKey = key;
+                        node.prevKey = targetNodePrevKey;
+                        node.prevKeyIsSet = true;
                     };
-
-                    node.nextKey = targetKey;
-                    node.nextKeyIsSet = true;
                     if (i == 0) {
                         list.head = key;
                     }
@@ -265,14 +266,9 @@ module ferum_std::linked_list {
     /// Returns the list as a vector.
     public fun as_vector<V: store + copy + drop>(list: &LinkedList<V>): vector<V> {
         let out = vector::empty();
-        if (length(list) == 0) {
-            return out
-        };
-        let curr = get_node(list, list.head);
-        vector::push_back(&mut out, curr.value);
-        while (curr.nextKeyIsSet) {
-            curr = get_node(list, curr.nextKey);
-            vector::push_back(&mut out, curr.value);
+        let it = iterator(list);
+        while (has_next(&it)) {
+            vector::push_back(&mut out, get_next(list, &mut it));
         };
         out
     }
@@ -419,6 +415,19 @@ module ferum_std::linked_list {
     }
 
     #[test]
+    fun test_as_vector() {
+        let list = new<u128>();
+        add(&mut list, 1);
+        add(&mut list, 2);
+        add(&mut list, 2);
+        add(&mut list, 1);
+
+        assert!(as_vector(&list) == vector<u128>[1, 2, 2, 1], 0);
+
+        drop(list);
+    }
+
+    #[test]
     fun test_list_iteration_with_two_values() {
         let list = new<u128>();
         add(&mut list, 1);
@@ -550,10 +559,22 @@ module ferum_std::linked_list {
         assert_list(&list, b"5 <-> 1 <-> 4");
         insert_at(&mut list, 7, 1);
         assert_list(&list, b"5 <-> 7 <-> 1 <-> 4");
-        // insert_at(&mut list, 8, 0);
-        // assert_list(&list, b"8 <-> 5 <-> 7 <-> 1 <-> 4");
-        // insert_at(&mut list, 10, 5);
-        // assert_list(&list, b"8 <-> 5 <-> 7 <-> 1 <-> 4 <-> 10");
+        insert_at(&mut list, 8, 0);
+        assert_list(&list, b"8 <-> 5 <-> 7 <-> 1 <-> 4");
+        insert_at(&mut list, 10, 5);
+        assert_list(&list, b"8 <-> 5 <-> 7 <-> 1 <-> 4 <-> 10");
+
+        drop(list);
+    }
+
+    #[test]
+    fun test_linked_list_insert_at_middle() {
+        let list = new<u128>();
+        insert_at(&mut list, 1, 0);
+        insert_at(&mut list, 1000, 1);
+        insert_at(&mut list, 100, 1);
+        insert_at(&mut list, 10, 1);
+        assert_list(&list, b"1 <-> 10 <-> 100 <-> 1000");
 
         drop(list);
     }
@@ -612,7 +633,7 @@ module ferum_std::linked_list {
     //
 
     #[test_only]
-    fun assert_list(list: &LinkedList<u128>, expected: vector<u8>) {
+    public fun assert_list(list: &LinkedList<u128>, expected: vector<u8>) {
         assert!(list_as_string(list) == string::utf8(expected), 0);
     }
 
@@ -622,7 +643,7 @@ module ferum_std::linked_list {
     }
 
     #[test_only]
-    fun list_as_string(list: &LinkedList<u128>): String {
+    public fun list_as_string(list: &LinkedList<u128>): String {
         let output = string::utf8(b"");
 
         if (length(list) == 0) {

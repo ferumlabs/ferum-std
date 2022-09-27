@@ -202,16 +202,18 @@ module ferum_std::ref_linked_list {
                     let targetNode = table::borrow_mut(&mut list.nodes, targetKey);
                     let targetNodePrevKey = targetNode.prevKey;
                     let targetNodePrevKeyIsSet = targetNode.prevKeyIsSet;
+                    node.nextKey = targetKey;
+                    node.nextKeyIsSet = true;
                     targetNode.prevKey = key;
                     targetNode.prevKeyIsSet = true;
                     if (targetNodePrevKeyIsSet) {
                         let targetNodePrev = table::borrow_mut(&mut list.nodes, targetNodePrevKey);
                         targetNodePrev.nextKeyIsSet = true;
                         targetNodePrev.nextKey = key;
+                        node.prevKey = targetNodePrevKey;
+                        node.prevKeyIsSet = true;
                     };
 
-                    node.nextKey = targetKey;
-                    node.nextKeyIsSet = true;
                     if (i == 0) {
                         list.head = key;
                     }
@@ -285,11 +287,6 @@ module ferum_std::ref_linked_list {
     /// Returns the list as a vector. The list itself is dropped.
     public fun as_vector<V: store>(list: LinkedList<V>): vector<V> {
         let out = vector::empty();
-        if (length(&list) == 0) {
-            drop_empty_list(list);
-            return out
-        };
-
         let it = iterator(&list);
         while (has_next(&it)) {
             vector::push_back(&mut out, get_next(&mut list, &mut it));
@@ -455,6 +452,35 @@ module ferum_std::ref_linked_list {
     }
 
     #[test]
+    fun test_linked_list_insert_at_middle() {
+        let list = new<TestValue>();
+        insert_at(&mut list, test_value(1), 0);
+        insert_at(&mut list, test_value(1000), 1);
+        insert_at(&mut list, test_value(100), 1);
+        insert_at(&mut list, test_value(10), 1);
+        assert_list(&list, b"1 <-> 10 <-> 100 <-> 1000");
+
+        empty_and_drop_list(list, 4);
+    }
+
+    #[test]
+    fun test_linked_list_insert_at() {
+        let list = new<TestValue>();
+        add(&mut list, test_value(5));
+        add(&mut list, test_value(1));
+        add(&mut list, test_value(4));
+        assert_list(&list, b"5 <-> 1 <-> 4");
+        insert_at(&mut list, test_value(7), 1);
+        assert_list(&list, b"5 <-> 7 <-> 1 <-> 4");
+        insert_at(&mut list, test_value(8), 0);
+        assert_list(&list, b"8 <-> 5 <-> 7 <-> 1 <-> 4");
+        insert_at(&mut list, test_value(10), 5);
+        assert_list(&list, b"8 <-> 5 <-> 7 <-> 1 <-> 4 <-> 10");
+
+        empty_and_drop_list(list, 6);
+    }
+
+    #[test]
     #[expected_failure(abort_code = 5)]
     fun test_list_iteration_invalid_call_to_next() {
         let list = new<TestValue>();
@@ -463,6 +489,17 @@ module ferum_std::ref_linked_list {
         get_next(&mut list, &mut iterator);
         get_next(&mut list, &mut iterator);
         drop_empty_list(list);
+    }
+
+    #[test]
+    fun test_as_vector() {
+        let list = new<u128>();
+        add(&mut list, 1);
+        add(&mut list, 2);
+        add(&mut list, 2);
+        add(&mut list, 1);
+
+        assert!(as_vector(list) == vector<u128>[1, 2, 2, 1], 0);
     }
 
     #[test]
@@ -697,7 +734,7 @@ module ferum_std::ref_linked_list {
     }
 
     #[test_only]
-    fun assert_list(list: &LinkedList<TestValue>, expected: vector<u8>) {
+    public fun assert_list(list: &LinkedList<TestValue>, expected: vector<u8>) {
         assert!(list_as_string(list) == string::utf8(expected), 0);
     }
 
