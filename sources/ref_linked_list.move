@@ -179,7 +179,7 @@ module ferum_std::ref_linked_list {
         };
 
         if (idx == list.length) {
-            // We're inserting at the end of the list.
+            // We're inserting at the end of a non empty list.
             node.prevKeyIsSet = true;
             node.prevKey = list.tail;
             let tail = table::borrow_mut(&mut list.nodes, list.tail);
