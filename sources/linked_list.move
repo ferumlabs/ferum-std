@@ -5,6 +5,9 @@
 /// Ferum's implementation of a doubly linked list. Values stored in the list should be cheap to copy. Duplicate values
 /// are supported.
 ///
+/// This list should be used for values that are cheap to copy. For a list that stores by moving values, see
+/// (ref_linked_list)[/]
+///
 /// | Operation                            | Worst Case Time Complexity |
 /// |--------------------------------------|----------------------------|
 /// | Insertion of value to tail           | O(D)                       |
@@ -188,6 +191,13 @@ module ferum_std::linked_list {
     public fun borrow_first<V: store + copy + drop>(list: &LinkedList<V>): &V {
         assert!(!is_empty(list), EMPTY_LIST);
         let node = table::borrow(&list.nodes, list.head);
+        &node.value
+    }
+
+    /// Get a reference to the last element of the list.
+    public fun borrow_last<V: store + copy + drop>(list: &LinkedList<V>): &V {
+        assert!(!is_empty(list), EMPTY_LIST);
+        let node = table::borrow(&list.nodes, list.tail);
         &node.value
     }
 
@@ -393,7 +403,7 @@ module ferum_std::linked_list {
         assert!(value == 2, 0);
         assert!(has_next(&iterator), 0);
 
-        // Fourt value.
+        // Fourth value.
         let value = get_next(&list, &mut iterator);
         assert!(value == 1, 0);
 
