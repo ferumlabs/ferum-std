@@ -681,7 +681,7 @@ module ferum_std::ref_linked_list {
     //
 
     #[test_only]
-    public fun empty_and_drop_list(list: LinkedList<TestValue>, expectedLength: u128) {
+    public fun empty_and_drop_list<V: store + drop>(list: LinkedList<V>, expectedLength: u128) {
         assert!(expectedLength == length(&list), 0);
         let it = iterator(&list);
         while (has_next(&it)) {
