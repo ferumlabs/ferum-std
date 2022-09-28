@@ -7,6 +7,46 @@ module ferum_std::math {
         MAX_U128
     }
 
+    /// Get square root of `y`.
+    /// Using the Babylonian method (https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Babylonian_method)
+    public fun sqrt_u64(y: u64): u64 {
+        if (y < 4) {
+            if (y == 0) {
+                0u64
+            } else {
+                1u64
+            }
+        } else {
+            let z = y;
+            let x = y / 2 + 1;
+            while (x < z) {
+                z = x;
+                x = (y / x + x) / 2;
+            };
+            z
+        }
+    }
+
+    /// Get square root of `y`.
+    /// Using the Babylonian method (https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Babylonian_method)
+    public fun sqrt_u128(y: u128): u128 {
+        if (y < 4) {
+            if (y == 0) {
+                0u128
+            } else {
+                1u128
+            }
+        } else {
+            let z = y;
+            let x = y / 2 + 1;
+            while (x < z) {
+                z = x;
+                x = (y / x + x) / 2;
+            };
+            z
+        }
+    }
+
     public fun max_u128(a: u128, b: u128): u128 {
         if (a > b) {
             a
@@ -95,5 +135,23 @@ module ferum_std::math {
         assert!(min_u8(10, 100) == 10, 0);
         assert!(min_u8(1, 10) == 1, 0);
         assert!(min_u8(10, 10) == 10, 0);
+    }
+
+    #[test]
+    fun test_sqrt_u128() {
+        assert!(sqrt_u64(0) == 0, 0);
+        assert!(sqrt_u64(2) == 1, 0);
+        assert!(sqrt_u64(4) == 2, 0);
+        assert!(sqrt_u64(16) == 4, 0);
+        assert!(sqrt_u64(22500) == 150, 0);
+    }
+
+    #[test]
+    fun test_sqrt_u64() {
+        assert!(sqrt_u128(0) == 0, 0);
+        assert!(sqrt_u128(2) == 1, 0);
+        assert!(sqrt_u128(4) == 2, 0);
+        assert!(sqrt_u128(16) == 4, 0);
+        assert!(sqrt_u128(22500) == 150, 0);
     }
 }
