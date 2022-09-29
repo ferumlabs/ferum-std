@@ -429,12 +429,12 @@ module ferum_std::red_black_tree {
     //
 
     // Returns list iterator for the values stored at the provided key.
-    fun values_iterator<V: store + drop + copy>(tree: &Tree<V>, key: u128) : ListPosition<V> {
+    fun values_iterator<V: store + drop + copy>(tree: &Tree<V>, key: u128): ListPosition<V> {
         let node = get_node(tree, key);
         linked_list::iterator(&node.values)
     }
 
-    public fun min_iterator<V: store + drop + copy>(tree: &Tree<V>) : TreePosition<V> {
+    public fun min_iterator<V: store + drop + copy>(tree: &Tree<V>): TreePosition<V> {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
         let minKey = min_key(tree);
         TreePosition<V> {
@@ -445,7 +445,7 @@ module ferum_std::red_black_tree {
         }
     }
 
-    public fun max_iterator<V: store + drop + copy>(tree: &Tree<V>) : TreePosition<V> {
+    public fun max_iterator<V: store + drop + copy>(tree: &Tree<V>): TreePosition<V> {
         assert!(!is_empty(tree), TREE_IS_EMPTY);
         let maxKey = max_key(tree);
         TreePosition<V> {
@@ -456,15 +456,15 @@ module ferum_std::red_black_tree {
         }
     }
 
-    public fun has_next_value<V: store + drop + copy>(position: &TreePosition<V>) : bool {
+    public fun has_next_value<V: store + drop + copy>(position: &TreePosition<V>): bool {
         linked_list::has_next(&position.valuePosition)
     }
 
-    public fun has_next_key<V: store + drop + copy>(position: &TreePosition<V>) : bool {
+    public fun has_next_key<V: store + drop + copy>(position: &TreePosition<V>): bool {
         !position.completed
     }
 
-    public fun get_next_value<V: store + drop + copy>(tree: &Tree<V>, position: &mut TreePosition<V>) : V {
+    public fun get_next_value<V: store + drop + copy>(tree: &Tree<V>, position: &mut TreePosition<V>): V {
         assert!(has_next_value(position), INVALID_NEXT_OPERATION);
         let node = get_node(tree, position.currentKey);
         let value = linked_list::get_next(&node.values, &mut position.valuePosition);
@@ -476,7 +476,7 @@ module ferum_std::red_black_tree {
     }
 
     /// Returns the next key and updates position.
-    public fun get_next_key<V: store + drop + copy>(tree: &Tree<V>, position: &mut TreePosition<V>) : u128 {
+    public fun get_next_key<V: store + drop + copy>(tree: &Tree<V>, position: &mut TreePosition<V>): u128 {
         assert!(has_next_key(position), INVALID_NEXT_OPERATION);
         let node = get_node(tree, position.currentKey);
         if (position.direction == ITERATION_DIRECTION_MIN && node.key == tree.maxKey ||
@@ -2285,7 +2285,9 @@ module ferum_std::red_black_tree {
         move_to(&signer, tree)
     }
 
+    //
     // TEST VALUE DELETION
+    //
 
     #[test(signer = @0x345)]
     fun test_delete_value_with_key_that_has_multiple_values(signer: signer) {
@@ -2586,15 +2588,6 @@ module ferum_std::red_black_tree {
             assert_red_black_tree(&tree);
             i = i + 1;
         };
-//        while (!is_empty(&tree)) {
-//            let rootNodeKey = tree.rootNodeKey;
-//            let keyCountBeforeDeletion = key_count<u128>(&tree);
-//            delete_key(&mut tree, rootNodeKey);
-//            assert!(keyCountBeforeDeletion == key_count<u128>(&tree) + 1, 0);
-//            assert_red_black_tree(&tree);
-//            i = i - 1;
-//        };
-//        assert!(is_empty(&tree), 0);
         move_to(&signer, tree)
     }
 
@@ -2668,7 +2661,7 @@ module ferum_std::red_black_tree {
     }
 
     #[test_only]
-    fun test_tree(nodeKeys: vector<u128>) : Tree<u128> {
+    fun test_tree(nodeKeys: vector<u128>): Tree<u128> {
         let tree = new<u128>();
         let i = 0;
         while (i < vector::length(&nodeKeys)) {
@@ -2956,7 +2949,7 @@ module ferum_std::red_black_tree {
     }
 
     #[test_only]
-    fun assert_black_node_depth_starting_node<V: store + drop + copy>(tree: &Tree<V>, currentNodeKey: u128) : u128 {
+    fun assert_black_node_depth_starting_node<V: store + drop + copy>(tree: &Tree<V>, currentNodeKey: u128): u128 {
         let currentNodeCount = if (is_red(tree, currentNodeKey)) { 0 } else { 1 };
         if (has_left_child(tree, currentNodeKey) && has_right_child(tree, currentNodeKey)) {
             let leftChildDepth = assert_black_node_depth_starting_node(tree, left_child_key(tree, currentNodeKey));
