@@ -3,9 +3,9 @@ description: ferum_std::red_black_tree
 ---
 
 Ferum's implementation of a [Red Black Tree](https://en.wikipedia.org/wiki/Red%E2%80%93black_tree).
-A red black tree is a self balancing binary tree which performs rotations tree manipulations to maintain a tree
+A red black tree is a self balancing binary tree which performs rotations on tree manipulations to maintain a tree
 height of log(k), where k is the number of keys in the tree. Values with duplicate keys can be inserted into the
-tree - each value will stored in a linked list on each tree node. When a node no longer has any values, the node
+tree; each value will stored in a linked list on each tree node. When a node no longer has any values, the node
 is removed (this is referred to as key deletion). The tree only supports u128 keys because (as of writing) move
 has no way to define comparators for generic types.
 
@@ -37,19 +37,35 @@ red_black_tree::insert(&mut tree, 100, 40);
 red_black_tree::insert(&mut tree, 120, 10);
 red_black_tree::insert(&mut tree, 90, 5);
 
-// Get min/max
+// Get values.
+let firstValue = red_black_tree::first_value_at(&tree, 100);
+let allValue = red_black_tree::values_at(&tree, 100);
+
+// Get min/max.
 let min = red_black_tree::min_key(&tree);
-assert!(min == 90, 0);
 let max = red_black_tree::max_key(&tree);
-assert!(max == 90, 0);
+
+// Get tree metadata.
+let keyCount = red_black_tree::key_count(&tree);
+let valueCount = red_black_tree::value_count(&tree);
 
 // Delete values and keys.
 red_black_tree::delete_value(&mut tree, 100, 40);
 red_black_tree::delete_key(&mut tree, 90);
-let min = red_black_tree::min_key(&tree);
-assert!(min == 100, 0);
 ```
 
+
+
+
+<a name="ferum_std_red_black_tree_TreePosition"></a>
+
+# Struct `TreePosition`
+
+Used for traversal the tree in various directions.
+
+
+<pre><code><b>struct</b> <a href="red_black_tree.md#ferum_std_red_black_tree_TreePosition">TreePosition</a>&lt;V: <b>copy</b>, drop, store&gt; <b>has</b> <b>copy</b>, drop
+</code></pre>
 
 
 
@@ -84,6 +100,21 @@ Thrown when attempting to delete a value that doesn't exist.
 
 
 <pre><code><b>const</b> <a href="red_black_tree.md#ferum_std_red_black_tree_VALUE_NOT_FOUND">VALUE_NOT_FOUND</a>: u64 = 2;
+</code></pre>
+
+
+
+<a name="@expecting_key_to_be_set"></a>
+
+## EXPECTING_KEY_TO_BE_SET
+
+
+<a name="ferum_std_red_black_tree_EXPECTING_KEY_TO_BE_SET"></a>
+
+Expecting the key to be set i.e. asserting leftChildNodeKeyIsSet, before accessing leftChildNodeKey.
+
+
+<pre><code><b>const</b> <a href="red_black_tree.md#ferum_std_red_black_tree_EXPECTING_KEY_TO_BE_SET">EXPECTING_KEY_TO_BE_SET</a>: u64 = 12;
 </code></pre>
 
 
@@ -148,6 +179,21 @@ Thrown when trying to perform an operation on a leaf node but that node has no p
 
 
 
+<a name="@invalid_next_operation"></a>
+
+## INVALID_NEXT_OPERATION
+
+
+<a name="ferum_std_red_black_tree_INVALID_NEXT_OPERATION"></a>
+
+Thrown when trying to go to the next value or key in the iterator, when there isn't one!
+
+
+<pre><code><b>const</b> <a href="red_black_tree.md#ferum_std_red_black_tree_INVALID_NEXT_OPERATION">INVALID_NEXT_OPERATION</a>: u64 = 13;
+</code></pre>
+
+
+
 <a name="@invalid_outgoing_swap_edge_direction"></a>
 
 ## INVALID_OUTGOING_SWAP_EDGE_DIRECTION
@@ -174,6 +220,36 @@ Thrown when trying to perform an invalid rotation on the tree.
 
 
 <pre><code><b>const</b> <a href="red_black_tree.md#ferum_std_red_black_tree_INVALID_ROTATION_NODES">INVALID_ROTATION_NODES</a>: u64 = 3;
+</code></pre>
+
+
+
+<a name="@iteration_direction_max"></a>
+
+## ITERATION_DIRECTION_MAX
+
+
+<a name="ferum_std_red_black_tree_ITERATION_DIRECTION_MAX"></a>
+
+When using an iterator, encodes the direction towards the next maximum value i.e. reverse inorder traversal.
+
+
+<pre><code><b>const</b> <a href="red_black_tree.md#ferum_std_red_black_tree_ITERATION_DIRECTION_MAX">ITERATION_DIRECTION_MAX</a>: u8 = 1;
+</code></pre>
+
+
+
+<a name="@iteration_direction_min"></a>
+
+## ITERATION_DIRECTION_MIN
+
+
+<a name="ferum_std_red_black_tree_ITERATION_DIRECTION_MIN"></a>
+
+When using an iterator, encodes the direction towards the next minimum value i.e. inorder traversal.
+
+
+<pre><code><b>const</b> <a href="red_black_tree.md#ferum_std_red_black_tree_ITERATION_DIRECTION_MIN">ITERATION_DIRECTION_MIN</a>: u8 = 0;
 </code></pre>
 
 
@@ -324,6 +400,18 @@ Returns all the values with the given key.
 
 
 
+<a name="ferum_std_red_black_tree_values_at_list"></a>
+
+## Function `values_at_list`
+
+Returns all the values with the given key as a doubly linked list.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="red_black_tree.md#ferum_std_red_black_tree_values_at_list">values_at_list</a>&lt;V: <b>copy</b>, drop, store&gt;(tree: &<a href="red_black_tree.md#ferum_std_red_black_tree_Tree">red_black_tree::Tree</a>&lt;V&gt;, key: u128): &<a href="linked_list.md#ferum_std_linked_list_LinkedList">linked_list::LinkedList</a>&lt;V&gt;
+</code></pre>
+
+
+
 <a name="ferum_std_red_black_tree_max_key"></a>
 
 ## Function `max_key`
@@ -344,4 +432,16 @@ Returns the minimum key in the tree, if one exists.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="red_black_tree.md#ferum_std_red_black_tree_min_key">min_key</a>&lt;V: <b>copy</b>, drop, store&gt;(tree: &<a href="red_black_tree.md#ferum_std_red_black_tree_Tree">red_black_tree::Tree</a>&lt;V&gt;): u128
+</code></pre>
+
+
+
+<a name="ferum_std_red_black_tree_get_next_key"></a>
+
+## Function `get_next_key`
+
+Returns the next key and updates position.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="red_black_tree.md#ferum_std_red_black_tree_get_next_key">get_next_key</a>&lt;V: <b>copy</b>, drop, store&gt;(tree: &<a href="red_black_tree.md#ferum_std_red_black_tree_Tree">red_black_tree::Tree</a>&lt;V&gt;, position: &<b>mut</b> <a href="red_black_tree.md#ferum_std_red_black_tree_TreePosition">red_black_tree::TreePosition</a>&lt;V&gt;): u128
 </code></pre>

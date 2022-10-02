@@ -7,8 +7,8 @@ module ferum_std::math {
         MAX_U128
     }
 
-    /// Get square root of `y`.
-    /// Using the Babylonian method (https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Babylonian_method)
+    // Get square root of `y`.
+    // Using the Babylonian method (https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Babylonian_method)
     public fun sqrt_u64(y: u64): u64 {
         if (y < 4) {
             if (y == 0) {
@@ -27,8 +27,8 @@ module ferum_std::math {
         }
     }
 
-    /// Get square root of `y`.
-    /// Using the Babylonian method (https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Babylonian_method)
+    // Get square root of `y`.
+    // Using the Babylonian method (https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Babylonian_method)
     public fun sqrt_u128(y: u128): u128 {
         if (y < 4) {
             if (y == 0) {

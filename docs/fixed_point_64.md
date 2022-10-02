@@ -199,7 +199,7 @@ Example: <code><a href="fixed_point_64.md#ferum_std_fixed_point_64_new_u128">new
 
 ## Function `value`
 
-Return then underlying value of the FixedPoint.
+Returns the underlying value of the FixedPoint.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_value">value</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>): u128
