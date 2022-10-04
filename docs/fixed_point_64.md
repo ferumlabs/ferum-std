@@ -441,6 +441,20 @@ Divides two FixedPoints, rounding up if the number of decimal places exceeds DEC
 
 
 
+<a name="ferum_std_fixed_point_64_sqrt_approx"></a>
+
+## Function `sqrt_approx`
+
+Returns the approximation of the square root of the FixedPoint using the
+[Babylonian method](https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Babylonian_method).
+The approximation will always be less then the actual square root.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_sqrt_approx">sqrt_approx</a>(v: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
+</code></pre>
+
+
+
 <a name="ferum_std_fixed_point_64_add"></a>
 
 ## Function `add`
@@ -521,6 +535,18 @@ Return true if a == b.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_eq">eq</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, b: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>): bool
+</code></pre>
+
+
+
+<a name="ferum_std_fixed_point_64_is_zero"></a>
+
+## Function `is_zero`
+
+Return true if the value is zero.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_is_zero">is_zero</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>): bool
 </code></pre>
 
 

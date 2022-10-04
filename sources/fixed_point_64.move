@@ -41,7 +41,7 @@
 /// ```
 module ferum_std::fixed_point_64 {
 
-    use ferum_std::math::max_value_u128;
+    use ferum_std::math::{max_value_u128, sqrt_u128};
 
     /// Fixedpoint struct. Can be stored, copied, and dropped.
     struct FixedPoint64 has store, drop, copy {
@@ -50,6 +50,7 @@ module ferum_std::fixed_point_64 {
     }
 
     /// Number of decimal places in a FixedPoint value.
+    // Must be even to support the sqrt function.
     const DECIMAL_PLACES: u8 = 10;
     /// Max value a FixedPoint can represent.
     const MAX_VALUE: u128 = 18446744073709551615;
@@ -256,6 +257,18 @@ module ferum_std::fixed_point_64 {
         FixedPoint64 { val }
     }
 
+    /// Returns the approximation of the square root of the FixedPoint using the
+    /// [Babylonian method](https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Babylonian_method).
+    /// The approximation will always be less then the actual square root.
+    public fun sqrt_approx(v: FixedPoint64): FixedPoint64 {
+        let val = v.val;
+        let sqrtVal = sqrt_u128(val);
+        if (sqrtVal * sqrtVal > val) {
+            sqrtVal = sqrtVal - 1;
+        };
+        from_u128(sqrtVal, DECIMAL_PLACES/2)
+    }
+
     /// Adds two FixedPoints.
     public fun add(a: FixedPoint64, b: FixedPoint64): FixedPoint64 {
         // Runtime will error on overflow.
@@ -291,6 +304,11 @@ module ferum_std::fixed_point_64 {
     /// Return true if a == b.
     public fun eq(a: FixedPoint64, b: FixedPoint64): bool {
         a.val == b.val
+    }
+
+    /// Return true if the value is zero.
+    public fun is_zero(a: FixedPoint64): bool {
+        a.val == 0
     }
 
     /// Returns max(a, b).
@@ -523,6 +541,17 @@ module ferum_std::fixed_point_64 {
         let b = from_u64(1534, 2);
         assert!(trunc_to_decimals(b, 3).val == 153400000000, 0);
         assert!(round_up_to_decimals(b, 1).val == 154000000000, 0);
+    }
+
+    #[test]
+    fun test_sqrt() {
+        // Perfect square.
+        // sqrt_approx(11.0889) <= 3.33
+        assert!(sqrt_approx(from_u64(110889, 4)).val <= 33300000000, 0);
+
+        // Non perfect square (greater than 10 decimal places).
+        // sqrt_approx(110.889) <= 10.5303846083
+        assert!(sqrt_approx(from_u64(110889, 3)).val <= 105303846083, 0);
     }
 
     #[test]
