@@ -76,9 +76,6 @@ module ferum_std::fixed_point_64 {
     ///     - Dividing a number with 10 decimal places by 0.01, exceeding the max decimal places
     ///       FixedPoint64 can represent.
     const ERR_PRECISION_LOSS: u64 = 3;
-    /// Thrown when the value of a FixedPoint64 exceeds the [max value](#max_value)
-    /// able to be represented.
-    const ERR_EXCEED_MAX: u64 = 4;
 
     /// Create a new FixedPoint from a u64 value. No conversion is performed.
     /// Example: `new_u64(12345) == 0.0000012345`
@@ -217,14 +214,12 @@ module ferum_std::fixed_point_64 {
         // Runtime will error on overflow.
         let decimalMult = exp(DECIMAL_PLACES);
         let val = intPart * decimalMult + decimalsPart * exp(DECIMAL_PLACES - decimals);
-        assert!(val <= MAX_VALUE, ERR_EXCEED_MAX);
         FixedPoint64 { val }
     }
 
     /// Multiplies two FixedPoints, truncating if the number of decimal places exceeds DECIMAL_PLACES.
     public fun multiply_trunc(a: FixedPoint64, b: FixedPoint64): FixedPoint64 {
         let val = a.val * b.val / exp(DECIMAL_PLACES);
-        assert!(val <= MAX_VALUE, ERR_EXCEED_MAX);
         FixedPoint64 { val }
     }
 
@@ -235,14 +230,12 @@ module ferum_std::fixed_point_64 {
         if (val * decimalMult < a.val * b.val) {
             val = val + 1;
         };
-        assert!(val <= MAX_VALUE, ERR_EXCEED_MAX);
         FixedPoint64 { val }
     }
 
     /// Divides two FixedPoints, truncating if the number of decimal places exceeds DECIMAL_PLACES.
     public fun divide_trunc(a: FixedPoint64, b: FixedPoint64): FixedPoint64 {
         let val = a.val * exp(DECIMAL_PLACES) / b.val;
-        assert!(val <= MAX_VALUE, ERR_EXCEED_MAX);
         FixedPoint64 { val }
     }
 
@@ -253,7 +246,6 @@ module ferum_std::fixed_point_64 {
         if (val * b.val < a.val * decimalMult) {
             val = val + 1;
         };
-        assert!(val <= MAX_VALUE, ERR_EXCEED_MAX);
         FixedPoint64 { val }
     }
 
@@ -432,7 +424,6 @@ module ferum_std::fixed_point_64 {
     }
 
     #[test]
-    #[expected_failure]
     fun test_from_large_integer() {
         from_u128(max_value_u128(), 10);
     }
@@ -507,13 +498,6 @@ module ferum_std::fixed_point_64 {
         let a = from_u128(4294967295, 5);
         let product = multiply_trunc(a, a);
         assert!(to_u128(product, 10) == 18446744065119617025, 0);
-    }
-
-    #[test]
-    #[expected_failure]
-    fun test_square_root_of_max_plus_1() {
-        let a = from_u128(4294967296, 5);
-        multiply_trunc(a, a);
     }
 
     #[test]
