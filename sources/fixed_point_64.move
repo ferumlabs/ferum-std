@@ -218,7 +218,7 @@ module ferum_std::fixed_point_64 {
         let decimalMult = exp(DECIMAL_PLACES);
         let val = intPart * decimalMult + decimalsPart * exp(DECIMAL_PLACES - decimals);
         assert!(val <= MAX_VALUE, ERR_EXCEED_MAX);
-        FixedPoint64 { val: intPart * decimalMult + decimalsPart * exp(DECIMAL_PLACES - decimals) }
+        FixedPoint64 { val }
     }
 
     /// Multiplies two FixedPoints, truncating if the number of decimal places exceeds DECIMAL_PLACES.
