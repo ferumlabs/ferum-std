@@ -2,17 +2,13 @@
 description: ferum_std::fixed_point_64
 ---
 
-Ferum's implementation of a FixedPoint number.
-Has fixed decimal places of 10 and a max value of
-<code>MAX_U64 (18446744073709551615)</code>.
+# FixedPoint64
+
+Ferum's implementation of a FixedPoint number. Has fixed decimal places of 10 and a max value of `MAX_U64 (18446744073709551615)`.
 
 Operations that result in an overflow will error out.
 
-
-<a name="@quick-example"></a>
-
-# Quick Example
-
+## Quick Example
 
 ```
 use ferum_std::fixed_point_64::{Self, FixedPoint64};
@@ -35,7 +31,7 @@ let subtracted = fixed_point_64::sub(b, a);
 
 // Perform multiplication / division with support for rounding up or truncating.
 let multipliedRounded = fixed_point_64::multiply_round_up(a, a);
-let multipliedTruncated = fixed_point_64::multiply_truncated(a, a);
+let multipliedTruncated = fixed_point_64::multiply_trunc(a, a);
 let dividedRounded = fixed_point_64::divide_round_up(b, a);
 let dividedTruncated = fixed_point_64::divide_trunc(b, a);
 
@@ -44,531 +40,332 @@ let au64 = fixed_point_64::to_u64(a, 3);
 let bu64 = fixed_point_64::to_u64(b, 2);
 ```
 
-
-
-
-<a name="ferum_std_fixed_point_64_FixedPoint64"></a>
-
-# Struct `FixedPoint64`
+## Struct `FixedPoint64`
 
 Fixedpoint struct. Can be stored, copied, and dropped.
 
+```
+struct FixedPoint64 has copy, drop, store
+```
 
-<pre><code><b>struct</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">FixedPoint64</a> <b>has</b> <b>copy</b>, drop, store
-</code></pre>
+## Constants
 
-
-
-<a name="@constants"></a>
-
-# Constants
-
-
-<a name="@decimal_places"></a>
-
-## DECIMAL_PLACES
-
-
-<a name="ferum_std_fixed_point_64_DECIMAL_PLACES"></a>
+### DECIMAL\_PLACES
 
 Number of decimal places in a FixedPoint value.
 
+```
+const DECIMAL_PLACES: u8 = 10;
+```
 
-<pre><code><b>const</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_DECIMAL_PLACES">DECIMAL_PLACES</a>: u8 = 10;
-</code></pre>
+### ERR\_EXCEED\_MAX
 
+Thrown when the value of a FixedPoint64 exceeds the [max value](fixed\_point\_64.md#max\_value) able to be represented.
 
+```
+const ERR_EXCEED_MAX: u64 = 4;
+```
 
-<a name="@err_exceed_max"></a>
+### ERR\_EXCEED\_MAX\_DECIMALS
 
-## ERR_EXCEED_MAX
+Thrown when max decimals of FixedPoint64 is exceeded. Possible examples:
 
+* if trying to create a FixedPoint64 from a 12 decimal number
+* if multiplying two 6 decimal numbers together
 
-<a name="ferum_std_fixed_point_64_ERR_EXCEED_MAX"></a>
+```
+const ERR_EXCEED_MAX_DECIMALS: u64 = 1;
+```
 
-Thrown when the value of a FixedPoint64 exceeds the [max value](#max_value)
-able to be represented.
+### ERR\_EXCEED\_MAX\_EXP
 
+Because move doesn't have a native power function, we need to hardcode powers of 10. Thrown if we try to get a power of 10 that is not hardcoded.
 
-<pre><code><b>const</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_ERR_EXCEED_MAX">ERR_EXCEED_MAX</a>: u64 = 4;
-</code></pre>
+```
+const ERR_EXCEED_MAX_EXP: u64 = 2;
+```
 
+### ERR\_PRECISION\_LOSS
 
+Thrown when decimals are lost and not truncating or rounding up. Possible examples:
 
-<a name="@err_exceed_max_decimals"></a>
+* calling [`to_u64`](fixed\_point\_64.md#ferum\_std\_fixed\_point\_64\_to\_u64)`()` to convert a number that has 6 decimal places into 5 decimal places, losing a digit
+* Dividing a number with 10 decimal places by 0.01, exceeding the max decimal places FixedPoint64 can represent.
 
-## ERR_EXCEED_MAX_DECIMALS
+```
+const ERR_PRECISION_LOSS: u64 = 3;
+```
 
-
-<a name="ferum_std_fixed_point_64_ERR_EXCEED_MAX_DECIMALS"></a>
-
-Thrown when max decimals of FixedPoint64 is exceeded.
-Possible examples:
-- if trying to create a FixedPoint64 from a 12 decimal number
-- if multiplying two 6 decimal numbers together
-
-
-<pre><code><b>const</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_ERR_EXCEED_MAX_DECIMALS">ERR_EXCEED_MAX_DECIMALS</a>: u64 = 1;
-</code></pre>
-
-
-
-<a name="@err_exceed_max_exp"></a>
-
-## ERR_EXCEED_MAX_EXP
-
-
-<a name="ferum_std_fixed_point_64_ERR_EXCEED_MAX_EXP"></a>
-
-Because move doesn't have a native power function, we need to hardcode powers of 10.
-Thrown if we try to get a power of 10 that is not hardcoded.
-
-
-<pre><code><b>const</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_ERR_EXCEED_MAX_EXP">ERR_EXCEED_MAX_EXP</a>: u64 = 2;
-</code></pre>
-
-
-
-<a name="@err_precision_loss"></a>
-
-## ERR_PRECISION_LOSS
-
-
-<a name="ferum_std_fixed_point_64_ERR_PRECISION_LOSS"></a>
-
-Thrown when decimals are lost and not truncating or rounding up.
-Possible examples:
-- calling <code>[<a href="fixed_point_64.md#ferum_std_fixed_point_64_to_u64">to_u64</a>()](#function-to_u64)</code> to convert a number that has 6 decimal
-places into 5 decimal places, losing a digit
-- Dividing a number with 10 decimal places by 0.01, exceeding the max decimal places
-FixedPoint64 can represent.
-
-
-<pre><code><b>const</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_ERR_PRECISION_LOSS">ERR_PRECISION_LOSS</a>: u64 = 3;
-</code></pre>
-
-
-
-<a name="@max_value"></a>
-
-## MAX_VALUE
-
-
-<a name="ferum_std_fixed_point_64_MAX_VALUE"></a>
+### MAX\_VALUE
 
 Max value a FixedPoint can represent.
 
+```
+const MAX_VALUE: u128 = 18446744073709551615;
+```
 
-<pre><code><b>const</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_MAX_VALUE">MAX_VALUE</a>: u128 = 18446744073709551615;
-</code></pre>
+## Functions
 
+### Function `new_u64`
 
+Create a new FixedPoint from a u64 value. No conversion is performed. Example: [`new_u64`](fixed\_point\_64.md#ferum\_std\_fixed\_point\_64\_new\_u64)`(12345) == 0.0000012345`
 
-<a name="@functions"></a>
+```
+public fun new_u64(val: u64): fixed_point_64::FixedPoint64
+```
 
-# Functions
+### Function `new_u128`
 
+Create a new FixedPoint from a u128 value. No conversion is performed. Example: [`new_u128`](fixed\_point\_64.md#ferum\_std\_fixed\_point\_64\_new\_u128)`(12345) == 0.0000012345`
 
-<a name="ferum_std_fixed_point_64_new_u64"></a>
+```
+public fun new_u128(val: u128): fixed_point_64::FixedPoint64
+```
 
-## Function `new_u64`
-
-Create a new FixedPoint from a u64 value. No conversion is performed.
-Example: <code><a href="fixed_point_64.md#ferum_std_fixed_point_64_new_u64">new_u64</a>(12345) == 0.0000012345</code>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_new_u64">new_u64</a>(val: u64): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_new_u128"></a>
-
-## Function `new_u128`
-
-Create a new FixedPoint from a u128 value. No conversion is performed.
-Example: <code><a href="fixed_point_64.md#ferum_std_fixed_point_64_new_u128">new_u128</a>(12345) == 0.0000012345</code>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_new_u128">new_u128</a>(val: u128): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_value"></a>
-
-## Function `value`
+### Function `value`
 
 Returns the underlying value of the FixedPoint.
 
+```
+public fun value(a: fixed_point_64::FixedPoint64): u128
+```
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_value">value</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>): u128
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_zero"></a>
-
-## Function `zero`
+### Function `zero`
 
 Return a FixedPoint that equals 0.
 
+```
+public fun zero(): fixed_point_64::FixedPoint64
+```
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_zero">zero</a>(): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_one"></a>
-
-## Function `one`
+### Function `one`
 
 Return a FixedPoint that equals 1.
 
+```
+public fun one(): fixed_point_64::FixedPoint64
+```
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_one">one</a>(): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_half"></a>
-
-## Function `half`
+### Function `half`
 
 Return a FixedPoint that equals 0.5.
 
+```
+public fun half(): fixed_point_64::FixedPoint64
+```
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_half">half</a>(): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_max_fp"></a>
-
-## Function `max_fp`
+### Function `max_fp`
 
 Returns the max FixedPoint value.
 
+```
+public fun max_fp(): fixed_point_64::FixedPoint64
+```
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_max_fp">max_fp</a>(): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_min_fp"></a>
-
-## Function `min_fp`
+### Function `min_fp`
 
 Returns the min FixedPoint value.
 
+```
+public fun min_fp(): fixed_point_64::FixedPoint64
+```
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_min_fp">min_fp</a>(): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_trunc_to_decimals"></a>
-
-## Function `trunc_to_decimals`
+### Function `trunc_to_decimals`
 
 Returns a FixedPoint truncated to the given decimal places.
 
+```
+public fun trunc_to_decimals(a: fixed_point_64::FixedPoint64, decimals: u8): fixed_point_64::FixedPoint64
+```
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_trunc_to_decimals">trunc_to_decimals</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, decimals: u8): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_round_up_to_decimals"></a>
-
-## Function `round_up_to_decimals`
+### Function `round_up_to_decimals`
 
 Returns a FixedPoint rounded up to the given decimal places.
 
+```
+public fun round_up_to_decimals(a: fixed_point_64::FixedPoint64, decimals: u8): fixed_point_64::FixedPoint64
+```
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_round_up_to_decimals">round_up_to_decimals</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, decimals: u8): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
-</code></pre>
+### Function `to_u64_trunc`
 
+Converts the FixedPoint to a u64 value with the given number of decimal places. Truncates any digits that are lost.
 
+```
+public fun to_u64_trunc(a: fixed_point_64::FixedPoint64, decimals: u8): u64
+```
 
-<a name="ferum_std_fixed_point_64_to_u64_trunc"></a>
+### Function `to_u128_trunc`
 
-## Function `to_u64_trunc`
+Converts the FixedPoint to a u128 value with the given number of decimal places. Truncates any digits that are lost.
 
-Converts the FixedPoint to a u64 value with the given number of decimal places.
-Truncates any digits that are lost.
+```
+public fun to_u128_trunc(a: fixed_point_64::FixedPoint64, decimals: u8): u64
+```
 
+### Function `to_u64_round_up`
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_to_u64_trunc">to_u64_trunc</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, decimals: u8): u64
-</code></pre>
+Converts the FixedPoint to a u64 value with the given number of decimal places. Rounds up if digits are lost.
 
+```
+public fun to_u64_round_up(a: fixed_point_64::FixedPoint64, decimals: u8): u64
+```
 
+### Function `to_u128_round_up`
 
-<a name="ferum_std_fixed_point_64_to_u128_trunc"></a>
+Converts the FixedPoint to a u128 value with the given number of decimal places. Rounds up if digits are lost.
 
-## Function `to_u128_trunc`
+```
+public fun to_u128_round_up(a: fixed_point_64::FixedPoint64, decimals: u8): u64
+```
 
-Converts the FixedPoint to a u128 value with the given number of decimal places.
-Truncates any digits that are lost.
+### Function `to_u64`
 
+Converts the FixedPoint to a u64 value with the given number of decimal places. Errors if any digits are lost.
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_to_u128_trunc">to_u128_trunc</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, decimals: u8): u64
-</code></pre>
+```
+public fun to_u64(a: fixed_point_64::FixedPoint64, decimals: u8): u64
+```
 
+### Function `to_u128`
 
+Converts the FixedPoint to a u128 value with the given number of decimal places. Errors if any digits are lost.
 
-<a name="ferum_std_fixed_point_64_to_u64_round_up"></a>
+```
+public fun to_u128(a: fixed_point_64::FixedPoint64, decimals: u8): u64
+```
 
-## Function `to_u64_round_up`
-
-Converts the FixedPoint to a u64 value with the given number of decimal places.
-Rounds up if digits are lost.
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_to_u64_round_up">to_u64_round_up</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, decimals: u8): u64
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_to_u128_round_up"></a>
-
-## Function `to_u128_round_up`
-
-Converts the FixedPoint to a u128 value with the given number of decimal places.
-Rounds up if digits are lost.
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_to_u128_round_up">to_u128_round_up</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, decimals: u8): u64
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_to_u64"></a>
-
-## Function `to_u64`
-
-Converts the FixedPoint to a u64 value with the given number of decimal places.
-Errors if any digits are lost.
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_to_u64">to_u64</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, decimals: u8): u64
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_to_u128"></a>
-
-## Function `to_u128`
-
-Converts the FixedPoint to a u128 value with the given number of decimal places.
-Errors if any digits are lost.
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_to_u128">to_u128</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, decimals: u8): u64
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_from_u64"></a>
-
-## Function `from_u64`
+### Function `from_u64`
 
 Converts the value with the specified decimal places to a FixedPoint value.
 
+```
+public fun from_u64(v: u64, decimals: u8): fixed_point_64::FixedPoint64
+```
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_from_u64">from_u64</a>(v: u64, decimals: u8): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_from_u128"></a>
-
-## Function `from_u128`
+### Function `from_u128`
 
 Converts the value with the specified decimal places to a FixedPoint value.
 
+```
+public fun from_u128(v: u128, decimals: u8): fixed_point_64::FixedPoint64
+```
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_from_u128">from_u128</a>(v: u128, decimals: u8): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
-</code></pre>
+### Function `multiply_trunc`
 
+Multiplies two FixedPoints, truncating if the number of decimal places exceeds DECIMAL\_PLACES.
 
+```
+public fun multiply_trunc(a: fixed_point_64::FixedPoint64, b: fixed_point_64::FixedPoint64): fixed_point_64::FixedPoint64
+```
 
-<a name="ferum_std_fixed_point_64_multiply_trunc"></a>
+### Function `multiply_round_up`
 
-## Function `multiply_trunc`
+Multiplies two FixedPoints, rounding up if the number of decimal places exceeds DECIMAL\_PLACES.
 
-Multiplies two FixedPoints, truncating if the number of decimal places exceeds DECIMAL_PLACES.
+```
+public fun multiply_round_up(a: fixed_point_64::FixedPoint64, b: fixed_point_64::FixedPoint64): fixed_point_64::FixedPoint64
+```
 
+### Function `divide_trunc`
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_multiply_trunc">multiply_trunc</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, b: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
-</code></pre>
+Divides two FixedPoints, truncating if the number of decimal places exceeds DECIMAL\_PLACES.
 
+```
+public fun divide_trunc(a: fixed_point_64::FixedPoint64, b: fixed_point_64::FixedPoint64): fixed_point_64::FixedPoint64
+```
 
+### Function `divide_round_up`
 
-<a name="ferum_std_fixed_point_64_multiply_round_up"></a>
+Divides two FixedPoints, rounding up if the number of decimal places exceeds DECIMAL\_PLACES.
 
-## Function `multiply_round_up`
+```
+public fun divide_round_up(a: fixed_point_64::FixedPoint64, b: fixed_point_64::FixedPoint64): fixed_point_64::FixedPoint64
+```
 
-Multiplies two FixedPoints, rounding up if the number of decimal places exceeds DECIMAL_PLACES.
+### Function `sqrt_approx`
 
+Returns the approximation of the square root of the FixedPoint using the [Babylonian method](https://en.wikipedia.org/wiki/Methods\_of\_computing\_square\_roots#Babylonian\_method). The approximation will always be less then the actual square root.
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_multiply_round_up">multiply_round_up</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, b: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
-</code></pre>
+```
+public fun sqrt_approx(v: fixed_point_64::FixedPoint64): fixed_point_64::FixedPoint64
+```
 
-
-
-<a name="ferum_std_fixed_point_64_divide_trunc"></a>
-
-## Function `divide_trunc`
-
-Divides two FixedPoints, truncating if the number of decimal places exceeds DECIMAL_PLACES.
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_divide_trunc">divide_trunc</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, b: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_divide_round_up"></a>
-
-## Function `divide_round_up`
-
-Divides two FixedPoints, rounding up if the number of decimal places exceeds DECIMAL_PLACES.
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_divide_round_up">divide_round_up</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, b: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_sqrt_approx"></a>
-
-## Function `sqrt_approx`
-
-Returns the approximation of the square root of the FixedPoint using the
-[Babylonian method](https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Babylonian_method).
-The approximation will always be less then the actual square root.
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_sqrt_approx">sqrt_approx</a>(v: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_add"></a>
-
-## Function `add`
+### Function `add`
 
 Adds two FixedPoints.
 
+```
+public fun add(a: fixed_point_64::FixedPoint64, b: fixed_point_64::FixedPoint64): fixed_point_64::FixedPoint64
+```
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_add">add</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, b: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_sub"></a>
-
-## Function `sub`
+### Function `sub`
 
 Subtracts two FixedPoints.
 
+```
+public fun sub(a: fixed_point_64::FixedPoint64, b: fixed_point_64::FixedPoint64): fixed_point_64::FixedPoint64
+```
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_sub">sub</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, b: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_lt"></a>
-
-## Function `lt`
+### Function `lt`
 
 Return true if a < b.
 
+```
+public fun lt(a: fixed_point_64::FixedPoint64, b: fixed_point_64::FixedPoint64): bool
+```
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_lt">lt</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, b: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>): bool
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_lte"></a>
-
-## Function `lte`
+### Function `lte`
 
 Return true if a <= b.
 
+```
+public fun lte(a: fixed_point_64::FixedPoint64, b: fixed_point_64::FixedPoint64): bool
+```
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_lte">lte</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, b: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>): bool
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_gt"></a>
-
-## Function `gt`
+### Function `gt`
 
 Return true if a > b.
 
+```
+public fun gt(a: fixed_point_64::FixedPoint64, b: fixed_point_64::FixedPoint64): bool
+```
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_gt">gt</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, b: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>): bool
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_gte"></a>
-
-## Function `gte`
+### Function `gte`
 
 Return true if a >= b.
 
+```
+public fun gte(a: fixed_point_64::FixedPoint64, b: fixed_point_64::FixedPoint64): bool
+```
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_gte">gte</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, b: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>): bool
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_eq"></a>
-
-## Function `eq`
+### Function `eq`
 
 Return true if a == b.
 
+```
+public fun eq(a: fixed_point_64::FixedPoint64, b: fixed_point_64::FixedPoint64): bool
+```
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_eq">eq</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, b: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>): bool
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_is_zero"></a>
-
-## Function `is_zero`
+### Function `is_zero`
 
 Return true if the value is zero.
 
+```
+public fun is_zero(a: fixed_point_64::FixedPoint64): bool
+```
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_is_zero">is_zero</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>): bool
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_max"></a>
-
-## Function `max`
+### Function `max`
 
 Returns max(a, b).
 
+```
+public fun max(a: fixed_point_64::FixedPoint64, b: fixed_point_64::FixedPoint64): fixed_point_64::FixedPoint64
+```
 
-<pre><code><b>public</b> <b>fun</b> <a href="fixed_point_64.md#ferum_std_fixed_point_64_max">max</a>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, b: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
-</code></pre>
-
-
-
-<a name="ferum_std_fixed_point_64_min"></a>
-
-## Function `min`
+### Function `min`
 
 Returns min(a, b).
 
-
-<pre><code><b>public</b> <b>fun</b> <b>min</b>(a: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>, b: <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>): <a href="fixed_point_64.md#ferum_std_fixed_point_64_FixedPoint64">fixed_point_64::FixedPoint64</a>
-</code></pre>
+```
+public fun min(a: fixed_point_64::FixedPoint64, b: fixed_point_64::FixedPoint64): fixed_point_64::FixedPoint64
+```
