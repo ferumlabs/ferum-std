@@ -5,7 +5,7 @@ upgrade_policy = "compatible"
 license = "Apache-2.0"
 
 [dependencies]
-AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "devnet" }
+AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "testnet" }
 
 [addresses]
-ferum_std="0x33a6417b3846f094782adb6de9c0f6256c70502bf85e483d53140be0ff87a6fd"
+ferum_std="0xc4a97809df332af8bb20ebe1c60f47b7121648c5896f29dc37b4d2e60944e20d"
